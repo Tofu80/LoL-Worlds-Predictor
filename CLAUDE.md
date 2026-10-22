@@ -40,9 +40,12 @@ Update this section when the real commands differ.
 
 ## Hard rules
 
-1. **No look-ahead leakage.** To predict a tournament starting on date T, use only games with
-   `date < T`. Ratings, decay weights and any normalisation all follow this rule. Every backtest
-   function takes an explicit `cutoff_date`. If you can't prove a feature respects the cutoff, flag it.
+1. **No look-ahead leakage.** To predict a game played at time t, use only games with `date < t`.
+   Ratings start from games before the tournament's start date (`cutoff_date`) and update game by
+   game during the tournament: predict a game first, then add its result. Ratings, decay weights and
+   any normalisation all follow this rule. Every backtest function takes an explicit `cutoff_date`.
+   If you can't prove a feature respects the cutoff, flag it. (`rating_updates: frozen` in
+   `config/backtest.yaml` keeps ratings fixed at the start date instead.)
 2. **`data/raw/` is read-only.** All cleaning happens in code that writes to `data/processed/`.
 3. **Constants live in `config/`.** These include the Elo K-factor, initial rating, decay half-life
    (default 182 days), simulation count (default 10,000), rating noise and the random seed.
@@ -95,9 +98,10 @@ these, stop and raise it.
 
 - For anything beyond a small fix, use plan mode. Read the relevant code, propose a plan and wait
   for approval.
-- **Every new feature gets its own branch.** Branch off `main`, implement and test there, then merge
-  back into `main` only after all tests pass (`pytest` clean, `ruff` clean). Never develop directly
-  on `main`.
+- **Every new feature gets its own branch.** Branch off `main`, implement and test there, then push
+  the branch and open a pull request (`gh pr create`). Merge it on GitHub only after all tests pass
+  (`pytest` clean, `ruff` clean). `main` is protected on GitHub: no direct pushes, force-pushes or
+  deletion. Never develop directly on `main`.
 - Write tests first for logic with known right answers (Elo, series maths, Swiss rules).
 - Keep changes small and commit-sized. Commit messages say *why*, not just what.
 - Log modelling decisions in `docs/decisions.md` with the date, decision, alternatives and evidence.

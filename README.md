@@ -21,6 +21,13 @@ _(fill in: backtest log loss on Worlds 2023–2025 vs. betting odds)_
 
 _(fill in: table or chart)_
 
+## Data
+
+Oracle's Elixir match-data CSVs (2023 onward) are downloaded by hand from
+[oracleselixir.com](https://oracleselixir.com) into `data/raw/`. They are **not committed**
+(too large for GitHub) and are **never modified** — all cleaning happens in code.
+Create the `data/raw/` directory yourself before running the ingest step.
+
 ## Run it
 
 ```

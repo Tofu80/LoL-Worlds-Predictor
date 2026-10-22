@@ -1,0 +1,13 @@
+# Start date of each Worlds. Ratings are built from games with
+# date < start_date; games from start_date on are the ones evaluated.
+# Fill in from official sources. Do not assume from memory.
+#
+# rating_updates:
+#   in_tournament: predict each Worlds game from all games strictly before it,
+#                  then add it to the ratings (decided 2026-10-22)
+#   frozen:        ratings fixed at start_date for the whole tournament (fallback)
+rating_updates: in_tournament
+tournaments:
+  2023: {start_date: null}
+  2024: {start_date: null}
+  2025: {start_date: null}
