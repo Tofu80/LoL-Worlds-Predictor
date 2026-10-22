@@ -4,7 +4,8 @@
       "Bash(git add *)",
       "Bash(git checkout -b *)",
       "Bash(git commit -m *)",
-      "Bash(pytest tests*)",
+      "Bash(pytest)",
+      "Bash(pytest tests/*)",
       "Bash(ruff check *)",
       "Bash(ruff format *)"
     ],
@@ -23,12 +24,20 @@
       "Bash(git push * main)",
       "Bash(git push * HEAD:main)",
       "Bash(git push * *:main)",
+      "Bash(git push * +main*)",
+      "Bash(git push * *refs/heads/main*)",
       "Bash(git commit --no-verify *)",
+      "Bash(git commit * --no-verify*)",
       "Bash(git commit --amend *)",
+      "Bash(git commit * --amend*)",
       "Bash(git commit -F *)",
       "Bash(git commit --file *)",
+      "Bash(git add -f *)",
+      "Bash(git add --force *)",
       "Bash(git add */data/raw/*)",
       "Bash(ruff * data/raw/*)",
+      "Bash(pytest * --rootdir*)",
+      "Bash(pytest * --confcutdir*)",
       "Edit(data/raw/**)"
     ]
   }
