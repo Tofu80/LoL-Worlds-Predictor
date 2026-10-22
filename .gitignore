@@ -1,0 +1,19 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+*.parquet
+data/processed/*
+!data/processed/.gitkeep
+# Raw Oracle's Elixir CSVs are large (close to GitHub's 100 MB file limit).
+# Download them yourself; see README "Data". Keep the folder in git.
+data/raw/*
+!data/raw/.gitkeep
+# Pipeline run folders are local only. Key runs are copied to results/ (committed).
+runs/
+.DS_Store
+**/.superpowers/
