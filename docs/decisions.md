@@ -12,6 +12,24 @@ Each entry: what was decided, what else was considered, the evidence, and when t
 **Revisit if:**
 -->
 
+## 2026-10-22 — Swiss records feed bracket seeding
+**Decision:** The Swiss simulation returns every team's final (wins, losses) record, and the
+knockout bracket is seeded from those records using rules in `config/worlds_2026.yaml`.
+**Alternatives considered:** Return only qualified/eliminated lists and seed the bracket randomly
+or by rating.
+**Evidence:** Pending. Reasoning: real Worlds seeding depends on Swiss record, so title odds
+for 3-0 teams should reflect their easier path.
+**Revisit if:** The official 2026 seeding rules don't depend on record.
+
+## 2026-10-22 — Ratings update during the tournament
+**Decision:** In the backtest (and later live), ratings update game by game during Worlds: each
+game is predicted from games strictly before it, then its result is added.
+**Alternatives considered:** Freeze ratings at the tournament start date. Kept as a fallback
+(`rating_updates: frozen` in `config/backtest.yaml`) in case the rolling version isn't ready
+before Swiss starts.
+**Evidence:** Pending. To test: compare in-tournament and frozen log loss on Worlds 2023–2025.
+**Revisit if:** Rolling updates don't improve backtest log loss.
+
 ## 2026-10-22 — Initial scope
 **Decision:** Start with team-level Elo only. Player ratings, roster-change adjustments and Fearless
 draft effects are parked.
