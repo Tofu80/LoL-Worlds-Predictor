@@ -28,4 +28,6 @@ def compute_ratings(
     #   A) Scale K by exp(-ln2 * age_days / half_life) when replaying each game.
     #   B) Decay each team's rating toward initial_rating between gaps in play.
     # Option A is more common in sports models. Raise before implementing.
-    raise NotImplementedError("Time-decay Elo formula not yet decided — see comment above")
+    raise NotImplementedError(
+        "Time-decay Elo formula not yet decided — see comment above"
+    )
