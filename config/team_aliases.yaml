@@ -1,0 +1,6 @@
+# canonical: every current team name the model knows. A name in the data that is
+#            neither canonical nor an alias is "unknown" and stops /worlds-pipeline.
+# aliases:   alternate or historical name -> canonical name.
+# Example:   canonical: ["Cloud9"]   aliases: {"Cloud9 Gold": "Cloud9"}
+canonical: []
+aliases: {}

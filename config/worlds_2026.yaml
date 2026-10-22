@@ -1,0 +1,21 @@
+# WARNING: verify these rules against official Riot 2026 Worlds announcement
+# before running any simulation. Do not assume format from memory.
+year: 2026
+# Canonical names (must appear in team_aliases.yaml "canonical").
+# Fill in from the official qualified-teams list.
+teams: []
+swiss:
+  total_teams: 16
+  advance: 8
+  eliminate: 8
+  win_target: 3    # wins to qualify
+  loss_target: 3   # losses to be eliminated
+  bo1_rounds: [1, 2, 3]
+  bo3_rounds: [4, 5]
+knockout:
+  # How Swiss records map to bracket slots (e.g. 3-0 teams vs 3-2 teams,
+  # same-region avoidance). Fill in from the official rules.
+  seeding: null
+  quarterfinals: bo5
+  semifinals: bo5
+  final: bo5

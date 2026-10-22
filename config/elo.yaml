@@ -1,0 +1,6 @@
+k_factor: 32
+initial_rating: 1500
+decay_half_life_days: 182
+simulation_count: 10000
+rating_noise: 50
+random_seed: 42
