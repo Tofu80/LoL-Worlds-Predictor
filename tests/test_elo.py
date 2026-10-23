@@ -138,8 +138,9 @@ def test_all_teams_seen_are_returned():
         lambda g: g.iloc[1:],  # gameid with 1 row
         lambda g: pd.concat([g, g.iloc[[0]]]),  # gameid with 3 rows
         lambda g: g.assign(result=[1, 1] + list(g["result"][2:])),  # two winners
+        lambda g: g.assign(result=[0.5, 0.5] + list(g["result"][2:])),  # sums to 1
     ],
-    ids=["one_row", "three_rows", "two_winners"],
+    ids=["one_row", "three_rows", "two_winners", "half_results"],
 )
 def test_malformed_game_raises(bad):
     with pytest.raises(ValueError):
