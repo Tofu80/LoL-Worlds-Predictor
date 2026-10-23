@@ -184,3 +184,40 @@ def test_load_games_feeds_compute_ratings(tmp_path, aliases):
     )
     assert ratings["A"] > 1500 > ratings["C"]
     assert sum(ratings.values()) / len(ratings) == pytest.approx(1500)
+
+
+def test_blank_gameid_raises(tmp_path, aliases):
+    rows = game("g_ok") + game(None, a="A", b="C")
+    with pytest.raises(ValueError, match="gameid"):
+        load(tmp_path, rows, aliases)
+
+
+def test_game_with_only_player_rows_raises(tmp_path, aliases):
+    rows = game("g_ok") + [r for r in game("g_players") if r["position"] != "team"]
+    with pytest.raises(ValueError, match="g_players"):
+        load(tmp_path, rows, aliases)
+
+
+def test_mixed_timezone_dates_raise_value_error(tmp_path, aliases):
+    rows = game("g1", date="2024-01-01 10:00:00+00:00") + game(
+        "g2", date="2024-01-01 10:00:00+09:00"
+    )
+    with pytest.raises(ValueError, match="timezone"):
+        load(tmp_path, rows, aliases)
+
+
+def test_report_counts_game_incomplete_if_either_row_is(tmp_path, aliases):
+    rows = game("g1", league="LPL")
+    rows[1]["datacompleteness"] = "partial"
+    rows += game("g2", league=None, complete="partial")
+    df = load(tmp_path, rows, aliases)
+    counts = ingest_report(df, aliases)["incomplete_games_by_league"]
+    assert counts["LPL"] == 1
+    assert sum(counts.values()) == 2  # the league-less game is not dropped
+
+
+def test_empty_alias_table_is_fine(tmp_path):
+    path = tmp_path / "empty.yaml"
+    path.write_text("canonical: []\naliases: {}\n")
+    df = load_games(write_csv(tmp_path, game("g1")), path)
+    assert ingest_report(df, path)["unknown_teams"] == ["A", "B"]

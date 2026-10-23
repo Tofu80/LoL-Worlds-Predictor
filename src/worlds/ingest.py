@@ -31,8 +31,10 @@ def _validate(df: pd.DataFrame) -> None:
     Never drops rows: either every game passes or the load stops.
     """
     problems = []
-    if df["date"].dt.tz is not None:
-        raise ValueError("dates must be timezone-naive, as in the source")
+    if not pd.api.types.is_datetime64_dtype(df["date"]):
+        raise ValueError("dates must be one timezone-naive column, as in the source")
+    if df["gameid"].isna().any():
+        problems.append(f"{int(df['gameid'].isna().sum())} row(s) with a blank gameid")
     nat = df.loc[df["date"].isna(), "gameid"].unique()
     if len(nat):
         problems.append(_fail("missing or unparseable date", nat))
@@ -88,8 +90,11 @@ def load_games(path: Path, aliases_path: Path = ALIASES_PATH) -> pd.DataFrame:
         dtype={"gameid": str, "patch": str},
     )
     df = raw[raw["position"] == "team"][COLUMNS].reset_index(drop=True)
+    no_team_rows = set(raw["gameid"].dropna()) - set(df["gameid"].dropna())
+    if no_team_rows:
+        raise ValueError(_fail("gameid with no team rows", no_team_rows))
     df["date"] = pd.to_datetime(df["date"], format="ISO8601", errors="coerce")
-    aliases = yaml.safe_load(Path(aliases_path).read_text())["aliases"]
+    aliases = yaml.safe_load(Path(aliases_path).read_text())["aliases"] or {}
     df["teamname"] = df["teamname"].replace(aliases)
     _validate(df)
     df["result"] = df["result"].astype(int)
@@ -102,9 +107,18 @@ def ingest_report(games: pd.DataFrame, aliases_path: Path = ALIASES_PATH) -> dic
     unknown_teams: sorted team names not in canonical (after aliasing).
     incomplete_games_by_league: {league: games with datacompleteness != 'complete'}.
     """
-    canonical = set(yaml.safe_load(Path(aliases_path).read_text())["canonical"])
-    incomplete = games[games["datacompleteness"] != "complete"]
-    by_league = incomplete.drop_duplicates("gameid").groupby("league").size()
+    cfg = yaml.safe_load(Path(aliases_path).read_text())
+    canonical = set(cfg["canonical"] or [])
+    # A game is incomplete if either of its rows is; league may be blank.
+    flag = games["datacompleteness"].ne("complete")
+    per_game = (
+        games.assign(incomplete=flag)
+        .groupby("gameid")
+        .agg(incomplete=("incomplete", "any"), league=("league", "first"))
+    )
+    by_league = (
+        per_game[per_game["incomplete"]]["league"].fillna("(blank)").value_counts()
+    )
     return {
         "unknown_teams": sorted(set(games["teamname"].dropna()) - canonical),
         "incomplete_games_by_league": {k: int(v) for k, v in by_league.items()},
