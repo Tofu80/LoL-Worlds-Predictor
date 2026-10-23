@@ -14,8 +14,10 @@ def test_elo_config_has_required_keys():
         "simulation_count",
         "rating_noise",
         "random_seed",
+        "decay_method",
     ):
         assert key in cfg, f"Missing key: {key}"
+    assert cfg["decay_method"] in {"k_scale", "none"}
 
 
 def test_worlds_2026_has_required_keys():

@@ -4,3 +4,6 @@ decay_half_life_days: 182
 simulation_count: 10000
 rating_noise: 50
 random_seed: 42
+# k_scale: scale each game's K by exp(-ln2 * age / half-life), age from cutoff_date
+# none:    plain Elo (weight 1), the no-decay baseline for the half-life sweep
+decay_method: k_scale

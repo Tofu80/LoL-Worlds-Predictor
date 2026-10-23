@@ -12,6 +12,21 @@ Each entry: what was decided, what else was considered, the evidence, and when t
 **Revisit if:**
 -->
 
+## 2026-10-23 — Time decay method: Option A (scale K by game age)
+**Decision:** When replaying games in date order, scale each game's K by
+`weight = exp(-ln2 * age_days / decay_half_life_days)`. Only games with `date < cutoff_date` are
+used. `age_days = (cutoff_date - game_date)` in (fractional) days, measured from `cutoff_date`,
+not from today and not from each later game. Games played during the tournament (in-tournament
+updates in the backtest) get age 0, i.e. full K. Both teams in a game use the same scaled K, so
+updates stay zero-sum. `decay_method` in `config/elo.yaml` selects `k_scale` (default) or `none`
+(weight 1, plain Elo; the no-decay baseline for the half-life sweep).
+**Alternatives considered:** Option B, pull ratings toward the (league) mean based on time since
+last game (parked; to be compared with A later via `decay_method`). Measuring age from each
+prediction date (rejected for now: requires a full replay per prediction).
+**Evidence:** Pending. Compare `k_scale` vs `none` and half-lives of 91/182/365 days on the
+Worlds 2023–2025 backtest once `backtest.py` works.
+**Revisit if:** The backtest favours `none`, or once Option B is implemented.
+
 ## 2026-10-22 — Swiss records feed bracket seeding
 **Decision:** The Swiss simulation returns every team's final (wins, losses) record, and the
 knockout bracket is seeded from those records using rules in `config/worlds_2026.yaml`.
