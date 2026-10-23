@@ -15,8 +15,11 @@ that mistakes get caught. Modelling decisions are mine and are logged in [decisi
 - **Hooks:** No custom hooks yet. Guardrails are permission rules in `.claude/settings.json`:
   `Edit(data/raw/**)` and `git add` on raw data are denied, force-pushes and pushes to `main`
   are denied, `--no-verify` and `--amend` are denied, and `git push`, `gh pr create` and
-  `gh pr merge` ask first. The `security-guidance` plugin (user level) runs a security review
-  after every commit, push and turn. Making that once per PR is pending (see the PR notes).
+  `gh pr merge` ask first. The `security-guidance` plugin (user level) used to review every
+  commit and every turn. `.claude/settings.json` `env` now turns those off
+  (`SECURITY_GUIDANCE_COMMIT_REVIEW=off`, `ENABLE_STOP_REVIEW=0`), leaving the push sweep,
+  which reviews a branch's unreviewed commits in one pass. Commit and Stop reviews are
+  confirmed off in `~/.claude/security/log.txt`; the push sweep firing once per push is not yet confirmed.
 - **Custom commands:** `/worlds-pipeline` (`.claude/skills/worlds-pipeline/`) runs the data
   pipeline. No other commands yet.
 - **Reviewer agent:** `leakage-reviewer` (`.claude/agents/leakage-reviewer.md`, Opus,
