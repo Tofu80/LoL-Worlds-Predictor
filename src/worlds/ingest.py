@@ -177,9 +177,9 @@ def load_games(
     )
     skip = _read_excluded_leagues(ingest_config_path)
     in_skipped = raw["league"].isin(skip)
-    excluded_by_league = {
-        k: int(v)
-        for k, v in raw[in_skipped].groupby("league")["gameid"].nunique().items()
+    skipped_teams = raw[in_skipped & (raw["position"] == "team")]
+    excluded_by_league = {  # team rows / 2, so a blank gameid is still counted
+        k: int(v) // 2 for k, v in skipped_teams.groupby("league").size().items()
     }
     raw = raw[~in_skipped]
     excluded = _read_exclusions(exclusions_path)
@@ -238,6 +238,8 @@ def ingest_report(
     excluded_games: {gameid: reason} for listed games actually dropped.
     exclusions_not_found: listed gameids not in the file(s) loaded.
     excluded_leagues: {league: games dropped} for leagues in `excluded_leagues` config.
+    excluded_leagues_not_found: configured leagues with no games dropped in any file
+        (e.g. Oracle's Elixir renamed the league, so the filter matches nothing).
 
     international_leagues defaults to config/ingest.yaml, required_teams to the
     `teams` of config/worlds_*.yaml, excluded_gameids to games.attrs (pass the union
@@ -278,6 +280,9 @@ def ingest_report(
         },
         "exclusions_not_found": sorted(set(listed) - set(excluded_gameids)),
         "excluded_leagues": dict(excluded_leagues),
+        "excluded_leagues_not_found": sorted(
+            set(_read_excluded_leagues(INGEST_CONFIG_PATH)) - set(excluded_leagues)
+        ),
     }
 
 
@@ -309,6 +314,7 @@ def main() -> None:
     print(f"{len(games) // 2} games from {len(paths)} file(s)")
     print(f"Excluded games: {report['excluded_games']}")
     print(f"Excluded games by league: {report['excluded_leagues']}")
+    print(f"Excluded leagues not found: {report['excluded_leagues_not_found']}")
     print(f"Exclusions not found in files: {report['exclusions_not_found']}")
     print(f"Incomplete games by league: {report['incomplete_games_by_league']}")
     print(f"Other (non-canonical, pass-through) teams: {report['other_teams']}")

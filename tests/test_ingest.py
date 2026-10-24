@@ -471,6 +471,20 @@ def test_excluded_league_is_dropped_and_counted_per_league(tmp_path, aliases):
     assert rep["excluded_leagues"] == {"KeSPA Cup": 2}
 
 
+def test_excluded_league_with_blank_gameid_is_still_counted(tmp_path, aliases):
+    cfg = ingest_cfg(tmp_path, "excluded_leagues: [KeSPA Cup]\n")
+    rows = game(None, league="KeSPA Cup") + game("g1")
+    df = load(tmp_path, rows, aliases, ingest_config_path=cfg)
+    assert df.attrs["excluded_by_league"] == {"KeSPA Cup": 1}
+
+
+def test_configured_league_that_matched_nothing_is_reported(tmp_path, aliases):
+    df = load(tmp_path, game("g1"), aliases)  # real config: KeSPA Cup not in file
+    assert report(df, aliases)["excluded_leagues_not_found"] == ["KeSPA Cup"]
+    rep = report(df, aliases, excluded_leagues={"KeSPA Cup": 3})
+    assert rep["excluded_leagues_not_found"] == []
+
+
 def test_missing_excluded_leagues_key_filters_nothing(tmp_path, aliases):
     cfg = ingest_cfg(tmp_path, "international_leagues: []\n")
     df = load(tmp_path, game("g1", league="KeSPA Cup"), aliases, ingest_config_path=cfg)
