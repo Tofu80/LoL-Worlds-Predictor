@@ -225,3 +225,13 @@ fails validation. If it now validates, `load_games` raises ValueError naming the
 needed, remove it from data_exclusions.yaml").
 **Alternatives considered:** Keeping the silent drop (would hide a source fix and discard a good game).
 **Evidence:** `tests/test_ingest.py` (still-broken game dropped, fixed game raises).
+
+## 2026-10-24 — CDF (Coupe de France) excluded too
+**Decision (Phu):** `excluded_leagues: [KeSPA Cup, CDF]`. In CDF 2023 Team BDS (2 games, 2023-09-28) and
+Karmine Corp (3 games, 2023-09-29..10-04) fielded academy rosters under the main names, right before Worlds 2023.
+**Alternatives considered:** Excluding only the 5 flagged games (needs a gameid list that skips validation;
+a second mechanism for 5 games).
+**Evidence:** Playername vs. each team's usual roster that quarter. The whole league drops 141 games (72 in
+2023, 69 in 2024), including 4 unflagged Karmine Corp and 18 Solary games.
+**Revisit if:** The backtest shows the exclusion changes log loss.
+

@@ -105,4 +105,4 @@ def test_league_alias_targets_are_new_names_or_listed_merges():
 
 def test_ingest_config_excludes_kespa_cup():
     cfg = yaml.safe_load((CONFIG / "ingest.yaml").read_text())
-    assert "KeSPA Cup" in cfg["excluded_leagues"]
+    assert {"KeSPA Cup", "CDF"} <= set(cfg["excluded_leagues"])

@@ -480,9 +480,11 @@ def test_excluded_league_with_blank_gameid_is_still_counted(tmp_path, aliases):
 
 def test_configured_league_that_matched_nothing_is_reported(tmp_path, aliases):
     df = load(tmp_path, game("g1"), aliases)  # real config: KeSPA Cup not in file
-    assert report(df, aliases)["excluded_leagues_not_found"] == ["KeSPA Cup"]
-    rep = report(df, aliases, excluded_leagues={"KeSPA Cup": 3})
-    assert rep["excluded_leagues_not_found"] == []
+    assert "KeSPA Cup" in report(df, aliases)["excluded_leagues_not_found"]
+    seen = {"KeSPA Cup": 3, "CDF": 1}  # every league in the real config
+    assert (
+        report(df, aliases, excluded_leagues=seen)["excluded_leagues_not_found"] == []
+    )
 
 
 def test_missing_excluded_leagues_key_filters_nothing(tmp_path, aliases):
