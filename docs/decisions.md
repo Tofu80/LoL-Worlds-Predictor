@@ -182,3 +182,16 @@ Fluxo (2024-08-10 → 2025-01-26) and Team Whales (2024-08-17 → 2025-01-18).
 (2023-01..2024-08). The alias merges both histories into one Elo team. Options: a league-bounded or
 date-bounded alias (needs code), or renaming the Spanish-league rows to their own team.
 **Revisit if:** the Movistar KOI backtest ratings look contaminated.
+
+## 2026-10-24 — Movistar KOI collision resolved with a league-bounded alias
+**Decision:** `config/team_aliases.yaml` gets an optional `league_aliases` list. `load_games` applies it
+before the plain aliases: `Movistar KOI` on rows from LVP SL, EM or IC becomes `Movistar KOI (Spain)`
+(an ordinary pass-through team). `MAD Lions KOI` → `Movistar KOI` then merges only the LEC lineage.
+**Alternatives considered:** Date-bounded alias (the Spanish team's games all end before 2025-01-18,
+but a date rule is fragile if a later file adds games); leaving the merge (contaminates the Worlds
+team's rating).
+**Evidence:** After ingest, `Movistar KOI` is LEC/MSI/WLDs/EWC only (2023-01-21..2026-10-23) and
+`Movistar KOI (Spain)` is EM/IC/LVP SL only (2023-01-16..2024-11-05). Tests: `tests/test_ingest.py`
+(league alias cases), `tests/test_config.py`.
+**Revisit if:** The Spanish-league team plays in another league label, or the name `Movistar KOI` appears
+in LVP SL/EM/IC after the 2025 rebrand.

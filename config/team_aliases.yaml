@@ -74,3 +74,10 @@ aliases:
   MGN Vikings Esports: MVK Esports
   Fluxo: Fluxo W7M
   Team Whales: Team Secret Whales
+# Same name, different team: renamed only on rows from these leagues, before the aliases above.
+# Movistar KOI (LVP SL/EM/IC, 2023-01..2024-11) is a Spanish-league team, not the LEC team
+# that MAD Lions KOI became in 2025.
+league_aliases:
+  - from: Movistar KOI
+    to: Movistar KOI (Spain)
+    leagues: [LVP SL, EM, IC]

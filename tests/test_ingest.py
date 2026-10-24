@@ -267,6 +267,72 @@ def test_malformed_alias_config_raises_value_error(tmp_path, text):
         report(good, path)
 
 
+# --- league-bounded aliases (Movistar KOI name collision)
+
+
+@pytest.fixture
+def league_aliases(tmp_path):
+    path = tmp_path / "league_aliases.yaml"
+    cfg = {
+        "canonical": ["A", "B", "Movistar KOI"],
+        "aliases": {"MAD Lions KOI": "Movistar KOI"},
+        "league_aliases": [
+            {
+                "from": "Movistar KOI",
+                "to": "Movistar KOI (Spain)",
+                "leagues": ["LVP SL"],
+            }
+        ],
+    }
+    path.write_text(yaml.safe_dump(cfg))
+    return path
+
+
+def test_league_alias_renames_only_in_listed_leagues_and_avoids_collision(
+    tmp_path, league_aliases
+):
+    rows = (
+        game("g1", a="Movistar KOI", b="B", league="LVP SL")
+        + game("g2", a="MAD Lions KOI", b="A", league="LEC")
+        + game("g3", a="Movistar KOI", b="A", league="LEC")
+    )
+    df = load(tmp_path, rows, league_aliases)
+    names = df.groupby("gameid")["teamname"].agg(set).to_dict()
+    assert names["g1"] == {"Movistar KOI (Spain)", "B"}
+    assert names["g2"] == {"Movistar KOI", "A"}  # plain alias still applies
+    assert names["g3"] == {"Movistar KOI", "A"}  # same name, other league: untouched
+
+
+def test_league_alias_target_is_a_passthrough_team_not_unknown(
+    tmp_path, league_aliases
+):
+    rows = game("g1", a="Movistar KOI", b="B", league="LVP SL")
+    df = load(tmp_path, rows, league_aliases)
+    rep = report(df, league_aliases, intl=["LVP SL"])
+    assert rep["unknown_teams"] == [
+        "Movistar KOI (Spain)"
+    ]  # only if the league is international
+    assert report(df, league_aliases)["unknown_teams"] == []
+
+
+@pytest.mark.parametrize(
+    "rule",
+    [
+        "{from: X, to: Y}",  # no leagues
+        "{from: X, to: Y, leagues: []}",
+        "{from: X, to: Y, leagues: [null]}",
+        "{from: X, leagues: [L]}",  # no to
+        "{from: X, to: X, leagues: [L]}",  # no-op
+        "[X]",
+    ],
+)
+def test_malformed_league_alias_raises_value_error(tmp_path, rule):
+    path = tmp_path / "badla.yaml"
+    path.write_text(f"canonical: []\naliases: {{}}\nleague_aliases:\n  - {rule}\n")
+    with pytest.raises(ValueError, match="badla.yaml"):
+        load_games(write_csv(tmp_path, game("g1")), path)
+
+
 def _good(tmp_path):
     path = tmp_path / "good.yaml"
     path.write_text("canonical: []\naliases: {}\n")

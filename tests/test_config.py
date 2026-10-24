@@ -84,3 +84,13 @@ def test_alias_names_are_not_also_canonical():
     cfg = yaml.safe_load((CONFIG / "team_aliases.yaml").read_text())
     both = set(cfg["aliases"]) & set(cfg["canonical"])
     assert not both, f"alias key is also canonical: {sorted(both)}"
+
+
+def test_league_alias_targets_are_not_canonical_and_not_worlds_teams():
+    cfg = yaml.safe_load((CONFIG / "team_aliases.yaml").read_text())
+    rules = cfg.get("league_aliases") or []
+    assert any(r["from"] == "Movistar KOI" for r in rules)
+    targets = {r["to"] for r in rules}
+    assert not targets & set(cfg["canonical"])
+    teams = yaml.safe_load((CONFIG / "worlds_2026.yaml").read_text())["teams"]
+    assert not targets & set(teams)

@@ -24,7 +24,11 @@ COLUMNS = [
 
 
 def _read_alias_config(path: Path) -> dict:
-    """Return {"canonical": list, "aliases": dict}; raise ValueError naming path if malformed."""
+    """Return {"canonical", "aliases", "league_aliases"}; ValueError naming path if malformed.
+
+    league_aliases is optional: [{from, to, leagues}] renames `from` to `to` only on rows
+    whose league is in `leagues` (for a name shared by two different teams).
+    """
     cfg = yaml.safe_load(Path(path).read_text())
     if not isinstance(cfg, dict):
         msg = f"{path}: expected a mapping with 'canonical' and 'aliases'"
@@ -43,7 +47,20 @@ def _read_alias_config(path: Path) -> dict:
     bad = [n for n in names if not isinstance(n, str) or not n]
     if bad:
         raise ValueError(f"{path}: team names must be non-empty strings, got {bad}")
-    return {"canonical": canonical, "aliases": aliases}
+    rules = cfg.get("league_aliases") or []
+    if not isinstance(rules, list):
+        raise ValueError(f"{path}: 'league_aliases' must be a list")  # noqa: TRY004
+    for rule in rules:
+        ok = isinstance(rule, dict) and all(
+            isinstance(rule.get(k), str) and rule[k] for k in ("from", "to")
+        )
+        leagues = rule.get("leagues") if isinstance(rule, dict) else None
+        ok = ok and rule["from"] != rule["to"] and isinstance(leagues, list)
+        ok = ok and bool(leagues) and all(isinstance(x, str) and x for x in leagues)
+        if not ok:
+            msg = f"{path}: each league alias needs from, to (different) and leagues"
+            raise ValueError(msg)
+    return {"canonical": canonical, "aliases": aliases, "league_aliases": rules}
 
 
 def _read_exclusions(path: Path) -> dict[str, str]:
@@ -121,7 +138,8 @@ def load_games(
 
     Columns: gameid, date, league, teamname, side, result, patch, datacompleteness.
     The raw file is only read. Team names are mapped through the aliases in
-    aliases_path (the only place names are rewritten). The only games dropped are
+    aliases_path (the only place names are rewritten; league_aliases there first rename
+    a name that two teams share, by league). The only games dropped are
     the gameids listed in exclusions_path, before validation; they are recorded in
     df.attrs["excluded_gameids"] (see ingest_report). Rows with
     datacompleteness != 'complete' and unknown team names are kept (see
@@ -152,8 +170,11 @@ def load_games(
     if no_team_rows:
         raise ValueError(_fail("gameid with no team rows", no_team_rows))
     df["date"] = pd.to_datetime(df["date"], format="ISO8601", errors="coerce")
-    aliases = _read_alias_config(aliases_path)["aliases"]
-    df["teamname"] = df["teamname"].replace(aliases)
+    alias_cfg = _read_alias_config(aliases_path)
+    for rule in alias_cfg["league_aliases"]:  # before plain aliases
+        rows = df["league"].isin(rule["leagues"]) & (df["teamname"] == rule["from"])
+        df.loc[rows, "teamname"] = rule["to"]
+    df["teamname"] = df["teamname"].replace(alias_cfg["aliases"])
     _validate(df)
     df["result"] = df["result"].astype(int)
     df.attrs["excluded_gameids"] = sorted(excluded_gameids)  # list: parquet-safe
