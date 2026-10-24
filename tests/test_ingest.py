@@ -59,8 +59,9 @@ def exclusions(tmp_path):
     return path
 
 
-def load(tmp_path, rows, aliases, exclusions=None):
+def load(tmp_path, rows, aliases, exclusions=None, **kw):
     kwargs = {} if exclusions is None else {"exclusions_path": exclusions}
+    kwargs.update(kw)
     return load_games(write_csv(tmp_path, rows), aliases, **kwargs)
 
 
@@ -406,6 +407,84 @@ def test_empty_exclusions_list_is_fine(tmp_path, aliases):
     path = tmp_path / "x.yaml"
     path.write_text("exclusions: []\n")
     assert len(load(tmp_path, game("g1"), aliases, path)) == 2
+
+
+def fixed_game(gid="g_void"):
+    return game(gid)  # valid now: the source fixed it
+
+
+def test_listed_game_that_now_validates_raises_naming_gameid(
+    tmp_path, aliases, exclusions
+):
+    with pytest.raises(ValueError, match="g_void.*no longer needed"):
+        load(tmp_path, game("g1") + fixed_game(), aliases, exclusions)
+
+
+# --- Team Secret: EWC rows are the Whales roster, VCS rows are another team
+
+
+def test_league_alias_merges_ewc_team_secret_into_whales_but_not_vcs(tmp_path):
+    path = tmp_path / "ts.yaml"
+    path.write_text(
+        yaml.safe_dump(
+            {
+                "canonical": ["Team Secret Whales", "B"],
+                "aliases": {},
+                "league_aliases": [
+                    {
+                        "from": "Team Secret",
+                        "to": "Team Secret Whales",
+                        "leagues": ["EWC"],
+                    }
+                ],
+            }
+        )
+    )
+    rows = game("g1", a="Team Secret", league="EWC") + game(
+        "g2", a="Team Secret", league="VCS"
+    )
+    names = load(tmp_path, rows, path).groupby("gameid")["teamname"].agg(set)
+    assert names["g1"] == {"Team Secret Whales", "B"}
+    assert names["g2"] == {"Team Secret", "B"}
+
+
+# --- excluded leagues (KeSPA Cup academy rosters)
+
+
+def ingest_cfg(tmp_path, text):
+    path = tmp_path / "ingest.yaml"
+    path.write_text(text)
+    return path
+
+
+def test_excluded_league_is_dropped_and_counted_per_league(tmp_path, aliases):
+    cfg = ingest_cfg(tmp_path, "excluded_leagues: [KeSPA Cup]\n")
+    rows = (
+        game("g1", league="KeSPA Cup")
+        + game("g2", league="KeSPA Cup")
+        + game("g3", league="LCK")
+    )
+    df = load(tmp_path, rows, aliases, ingest_config_path=cfg)
+    assert set(df["gameid"]) == {"g3"}
+    assert df.attrs["excluded_by_league"] == {"KeSPA Cup": 2}
+    rep = report(df, aliases)
+    assert rep["excluded_leagues"] == {"KeSPA Cup": 2}
+
+
+def test_missing_excluded_leagues_key_filters_nothing(tmp_path, aliases):
+    cfg = ingest_cfg(tmp_path, "international_leagues: []\n")
+    df = load(tmp_path, game("g1", league="KeSPA Cup"), aliases, ingest_config_path=cfg)
+    assert len(df) == 2
+    assert df.attrs["excluded_by_league"] == {}
+
+
+@pytest.mark.parametrize(
+    "text", ["excluded_leagues: KeSPA Cup\n", "excluded_leagues: [1]\n"]
+)
+def test_malformed_excluded_leagues_raises_value_error(tmp_path, aliases, text):
+    cfg = ingest_cfg(tmp_path, text)
+    with pytest.raises(ValueError, match="ingest.yaml"):
+        load(tmp_path, game("g1"), aliases, ingest_config_path=cfg)
 
 
 # --- timestamps, not calendar dates (decision 2)
