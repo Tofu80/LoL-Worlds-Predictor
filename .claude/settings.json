@@ -25,9 +25,7 @@
       "Bash(pytest)",
       "Bash(pytest tests/*)",
       "Bash(ruff check *)",
-      "Bash(ruff format *)"
-    ],
-    "ask": [
+      "Bash(ruff format *)",
       "Bash(git push *)",
       "Bash(git merge *)",
       "Bash(gh pr create *)",
@@ -56,7 +54,13 @@
       "Bash(ruff * data/raw/*)",
       "Bash(pytest * --rootdir*)",
       "Bash(pytest * --confcutdir*)",
-      "Edit(data/raw/**)"
+      "Edit(data/raw/**)",
+      "Bash(git push * --force*)",
+      "Bash(git push * -f*)",
+      "Bash(git push * --mirror*)",
+      "Bash(git push * +*)",
+      "Bash(gh pr merge --admin*)",
+      "Bash(gh pr merge * --admin*)"
     ]
   }
 }
