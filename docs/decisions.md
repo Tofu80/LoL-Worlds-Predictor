@@ -169,3 +169,16 @@ Whales' EWC games (05-05..05-14), so it looks like a name reuse by another roste
 MAD Lions KOI → Movistar KOI, MGN Vikings Esports → MVK Esports, Fluxo → Fluxo W7M and Team Whales →
 Team Secret Whales candidates are still unanswered. NRG's 580-day gap is noted, not resolved.
 **Revisit if:** The Team Liquid history before the rebrand should not carry over to the new name.
+
+## 2026-10-24 — Four more aliases (Phu: yes)
+**Decision:** `MAD Lions KOI` → `Movistar KOI`, `MGN Vikings Esports` → `MVK Esports`, `Fluxo` →
+`Fluxo W7M`, `Team Whales` → `Team Secret Whales`. The three old names that were canonical are removed
+from `canonical`; `tests/test_config.py` checks that no alias key is also canonical.
+**Alternatives considered:** Leaving them split (each Worlds team would start 2025 with a fresh rating).
+**Evidence:** Leagues and date ranges per name, no overlap for MGN/MVK (2025-10-04 → 2026-01-17),
+Fluxo (2024-08-10 → 2025-01-26) and Team Whales (2024-08-17 → 2025-01-18).
+**Known problem (open):** the `Movistar KOI` name already existed for a different Spanish-league team
+(LVP SL 2023-01..2024-07, EM, IC; 158 team rows) that overlaps in time with MAD Lions KOI's LEC games
+(2023-01..2024-08). The alias merges both histories into one Elo team. Options: a league-bounded or
+date-bounded alias (needs code), or renaming the Spanish-league rows to their own team.
+**Revisit if:** the Movistar KOI backtest ratings look contaminated.

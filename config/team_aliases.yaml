@@ -42,8 +42,6 @@ canonical:
   - LYON
   - Leviatan
   - LØS
-  - MAD Lions KOI
-  - MGN Vikings Esports
   - MVK Esports
   - Movistar KOI
   - Movistar R7
@@ -66,10 +64,13 @@ canonical:
   - Team Secret Whales
   - Team Vitality
   - Team WE
-  - Team Whales
   - Top Esports
   - Vivo Keyd Stars
   - Weibo Gaming
   - paiN Gaming
 aliases:
   Team Liquid: Team Liquid Alienware
+  MAD Lions KOI: Movistar KOI
+  MGN Vikings Esports: MVK Esports
+  Fluxo: Fluxo W7M
+  Team Whales: Team Secret Whales

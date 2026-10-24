@@ -78,3 +78,9 @@ def test_data_exclusions_and_ingest_config_load():
     }
     intl = yaml.safe_load((CONFIG / "ingest.yaml").read_text())["international_leagues"]
     assert {"WLDs", "MSI", "FST", "EWC"} <= set(intl)
+
+
+def test_alias_names_are_not_also_canonical():
+    cfg = yaml.safe_load((CONFIG / "team_aliases.yaml").read_text())
+    both = set(cfg["aliases"]) & set(cfg["canonical"])
+    assert not both, f"alias key is also canonical: {sorted(both)}"
