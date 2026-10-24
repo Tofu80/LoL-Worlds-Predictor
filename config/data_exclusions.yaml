@@ -1,0 +1,8 @@
+# Source games dropped by load_games before validation. Only the listed gameids are
+# dropped; any other malformed game still raises. Each entry needs a gameid and a reason.
+# ingest_report lists the ones actually dropped and any listed id not found in the files.
+exclusions:
+  - gameid: ESPORTSTMNT01_3408461   # LCK 2023-08-04, Liiv SANDBOX vs T1
+    reason: both team rows have result 0 in source
+  - gameid: LOLTMNT01_52116         # ESLOL 2024-02-08
+    reason: both team rows have result 0 in source

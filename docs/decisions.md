@@ -93,3 +93,105 @@ raising on unknown teams inside `load_games` (unusable while `canonical` is empt
 **Evidence:** `tests/test_ingest.py` (malformed-game cases, report, `compute_ratings` round trip).
 **Revisit if:** Real Oracle's Elixir files contain rows that legitimately fail these checks (blank
 team names in partial-data leagues), which would need an explicit exclusion list in `config/`.
+
+## 2026-10-24 — Data exclusions: a listed gameid is dropped, any other bad game raises
+**Decision:** `config/data_exclusions.yaml` lists `{gameid, reason}`. `load_games` drops only those
+gameids, before validation. `ingest_report` shows the excluded games it dropped and any listed gameid
+not found in the loaded files. Seeded with `ESPORTSTMNT01_3408461` (LCK, Liiv SANDBOX vs T1,
+2023-08-04) and `LOLTMNT01_52116` (ESLOL, 2024-02-08): both team rows have result 0 in source.
+**Alternatives considered:** Auto-voiding any game without exactly one win (silent, would hide real
+corruption); fixing the results by hand (the true winner is unknowable).
+**Evidence:** Read-only profile of the 2023–2026 CSVs: 2025 and 2026 load cleanly; 2023 and 2024 each
+fail on exactly one 0/0 game. `tests/test_ingest.py` (exclusion tests); `python -m worlds.ingest`
+reports both dropped and none missing.
+**Revisit if:** A future Oracle's Elixir download fixes these games (the report would list them as
+not found, so the entry can be removed).
+
+## 2026-10-24 — Dates are UTC; every leakage comparison uses the full timestamp
+**Decision:** Oracle's Elixir dates are UTC, stored timezone-naive. All `date < t` comparisons use the
+full timestamp, never the calendar date, and `cutoff_date` may be a full timestamp. Worlds 2026 is in
+the US, so games start 17:00–20:00 UTC and run past midnight UTC.
+**Alternatives considered:** Local tournament time (needs a per-event timezone table and gives
+nothing the model needs); comparing calendar dates (a game at 00:30 UTC would count as the same
+day as a cutoff the evening before).
+**Evidence:** Checked against the 2023 Seoul, 2024 London and 2025 Chengdu finals start times.
+`tests/test_ingest.py::test_game_after_midnight_utc_is_compared_by_timestamp`. No code in `src/`
+truncates dates. For the backtest: YAML parses `start_date: 2023-10-10` as `datetime.date`, so
+convert with `pd.Timestamp(...)` before comparing with the datetime64 column
+(`tests/test_config.py` does this).
+**Revisit if:** A source with local-time dates is added.
+
+## 2026-10-24 — Canonical names are required only for international leagues and Worlds teams
+**Decision:** The unknown-team stop in `main()` applies to (a) names appearing in a league listed in
+`config/ingest.yaml` `international_leagues` and (b) teams in `config/worlds_<year>.yaml`. Every other
+name passes through as its own team and `ingest_report` counts it (`other_teams`). This replaces the
+PR #5 rule that every name must be canonical.
+**Alternatives considered:** Canonical for all 1,113 names (most appear only in minor leagues and
+never reach an international event); canonical for international events only (would miss a Worlds
+team that has no international games).
+**Evidence:** 1,113 distinct names across 2023–26, only 68 in the international leagues.
+**Known issue (not fixed here):** An "international league label" is not the same as a "cross-region
+game". WLDs includes regional qualifiers weeks before each main event, and EWC April–June 2026 is 50
+teams playing mostly inside their own region. Future Elo work that treats international games as the
+cross-region link must filter these first.
+**Revisit if:** Elo regional drift shows up in the backtest.
+
+## 2026-10-24 — International league list
+**Decision:** `[WLDs, MSI, FST, EWC, ASI, DCGI]`. ASI (2025-10, main rosters from KR, CN, VN and
+PCS) and DCGI (2026-10, main rosters from KR, CN, EU, NA, BR and VN) are added.
+**Alternatives considered:** KeSPA Cup (mostly LCK teams, two NA guests), AC (NA vs BR inside one
+region); the academy and minor-league mixes AM, ASCI, PCL, WSCI, CD, LRN and LRS (rejected: not
+main rosters).
+**Evidence:** Team-region mix per league, 2023–26 data (regions from each team's most-played major
+league).
+**Revisit if:** A league's role in cross-region strength is clearer on closer inspection.
+
+## 2026-10-24 — Backtest start dates are the play-in start
+**Decision:** `config/backtest.yaml` start_date: 2023-10-10, 2024-09-25, 2025-10-14. Earlier WLDs
+games (27, 26 and 12 games) are qualifiers, kept as rating data and not evaluated.
+**Alternatives considered:** Main-event start (leaves the play-in out of evaluation).
+**Evidence:** invenglobal.com/articles/18339, lolesports.com/en-US/news/worlds-2024,
+lolesports.com/en-US/news/worlds-2025-heads-to-china. `tests/test_real_data.py`: the first WLDs game
+on or after each start_date falls on that UTC day, and earlier WLDs games exist in all three years.
+Note: 2023-10-09 has three WLDs games, Golden Guardians 0–3 Team BDS (the on-site Worlds Qualifying
+Series), which count as qualifier rating data.
+**Revisit if:** Official dates are corrected.
+
+## 2026-10-24 — Aliases: Team Liquid → Team Liquid Alienware; Team Secret stays separate
+**Decision:** Alias `Team Liquid` → `Team Liquid Alienware` (canonical, and the name used in
+`config/worlds_2026.yaml`). `Team Secret` is NOT aliased to `Team Secret Whales`. KeSPA Cup and AC stay
+out of the international league list. `worlds_2026.yaml` `teams` holds the 16 Swiss Stage teams.
+**Alternatives considered:** Keeping `Team Liquid` canonical (data name; rejected so the Worlds list
+matches the official 2026 name). Aliasing Team Secret: it played VCS to 2024-08-10 and reappears only
+in EWC 2026-05-20..07-15 against GAM, Karmine Corp and Sentinels, in weeks different from Team Secret
+Whales' EWC games (05-05..05-14), so it looks like a name reuse by another roster.
+**Evidence:** Per-name league and date ranges from the 2023–26 data. No other aliases applied; the
+MAD Lions KOI → Movistar KOI, MGN Vikings Esports → MVK Esports, Fluxo → Fluxo W7M and Team Whales →
+Team Secret Whales candidates are still unanswered. NRG's 580-day gap is noted, not resolved.
+**Revisit if:** The Team Liquid history before the rebrand should not carry over to the new name.
+
+## 2026-10-24 — Four more aliases (Phu: yes)
+**Decision:** `MAD Lions KOI` → `Movistar KOI`, `MGN Vikings Esports` → `MVK Esports`, `Fluxo` →
+`Fluxo W7M`, `Team Whales` → `Team Secret Whales`. The three old names that were canonical are removed
+from `canonical`; `tests/test_config.py` checks that no alias key is also canonical.
+**Alternatives considered:** Leaving them split (each Worlds team would start 2025 with a fresh rating).
+**Evidence:** Leagues and date ranges per name, no overlap for MGN/MVK (2025-10-04 → 2026-01-17),
+Fluxo (2024-08-10 → 2025-01-26) and Team Whales (2024-08-17 → 2025-01-18).
+**Known problem (open):** the `Movistar KOI` name already existed for a different Spanish-league team
+(LVP SL 2023-01..2024-07, EM, IC; 158 team rows) that overlaps in time with MAD Lions KOI's LEC games
+(2023-01..2024-08). The alias merges both histories into one Elo team. Options: a league-bounded or
+date-bounded alias (needs code), or renaming the Spanish-league rows to their own team.
+**Revisit if:** the Movistar KOI backtest ratings look contaminated.
+
+## 2026-10-24 — Movistar KOI collision resolved with a league-bounded alias
+**Decision:** `config/team_aliases.yaml` gets an optional `league_aliases` list. `load_games` applies it
+before the plain aliases: `Movistar KOI` on rows from LVP SL, EM or IC becomes `Movistar KOI (Spain)`
+(an ordinary pass-through team). `MAD Lions KOI` → `Movistar KOI` then merges only the LEC lineage.
+**Alternatives considered:** Date-bounded alias (the Spanish team's games all end before 2025-01-18,
+but a date rule is fragile if a later file adds games); leaving the merge (contaminates the Worlds
+team's rating).
+**Evidence:** After ingest, `Movistar KOI` is LEC/MSI/WLDs/EWC only (2023-01-21..2026-10-23) and
+`Movistar KOI (Spain)` is EM/IC/LVP SL only (2023-01-16..2024-11-05). Tests: `tests/test_ingest.py`
+(league alias cases), `tests/test_config.py`.
+**Revisit if:** The Spanish-league team plays in another league label, or the name `Movistar KOI` appears
+in LVP SL/EM/IC after the 2025 rebrand.

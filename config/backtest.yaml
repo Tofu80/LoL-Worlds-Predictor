@@ -8,6 +8,8 @@
 #   frozen:        ratings fixed at start_date for the whole tournament (fallback)
 rating_updates: in_tournament
 tournaments:
-  2023: {start_date: null}
-  2024: {start_date: null}
-  2025: {start_date: null}
+  # start_date = play-in start (UTC dates, as in Oracle's Elixir). Earlier WLDs games
+  # are regional qualifiers: kept as rating data, not evaluated.
+  2023: {start_date: 2023-10-10}  # invenglobal.com/articles/18339
+  2024: {start_date: 2024-09-25}  # lolesports.com/en-US/news/worlds-2024
+  2025: {start_date: 2025-10-14}  # lolesports.com/en-US/news/worlds-2025-heads-to-china
