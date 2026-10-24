@@ -20,6 +20,29 @@ COLUMNS = [
 ]
 
 
+def _read_alias_config(path: Path) -> dict:
+    """Return {"canonical": list, "aliases": dict}; raise ValueError naming path if malformed."""
+    cfg = yaml.safe_load(Path(path).read_text())
+    if not isinstance(cfg, dict):
+        msg = f"{path}: expected a mapping with 'canonical' and 'aliases'"
+        raise ValueError(msg)  # noqa: TRY004 (bad config is a ValueError by design)
+    for key in ("canonical", "aliases"):
+        if key not in cfg:
+            raise ValueError(f"{path}: missing '{key}' section")
+    canonical = cfg["canonical"] or []
+    aliases = cfg["aliases"] or {}
+    if not isinstance(canonical, list):
+        raise ValueError(f"{path}: 'canonical' must be a list")  # noqa: TRY004
+    if not isinstance(aliases, dict):
+        msg = f"{path}: 'aliases' must be a mapping of name -> canonical name"
+        raise ValueError(msg)  # noqa: TRY004
+    names = [*canonical, *aliases, *aliases.values()]
+    bad = [n for n in names if not isinstance(n, str) or not n]
+    if bad:
+        raise ValueError(f"{path}: team names must be non-empty strings, got {bad}")
+    return {"canonical": canonical, "aliases": aliases}
+
+
 def _fail(problem: str, gameids) -> str:
     ids = sorted(map(str, gameids))
     return f"{problem}: {len(ids)} gameid(s), first {ids[:10]}"
@@ -94,7 +117,7 @@ def load_games(path: Path, aliases_path: Path = ALIASES_PATH) -> pd.DataFrame:
     if no_team_rows:
         raise ValueError(_fail("gameid with no team rows", no_team_rows))
     df["date"] = pd.to_datetime(df["date"], format="ISO8601", errors="coerce")
-    aliases = yaml.safe_load(Path(aliases_path).read_text())["aliases"] or {}
+    aliases = _read_alias_config(aliases_path)["aliases"]
     df["teamname"] = df["teamname"].replace(aliases)
     _validate(df)
     df["result"] = df["result"].astype(int)
@@ -107,8 +130,7 @@ def ingest_report(games: pd.DataFrame, aliases_path: Path = ALIASES_PATH) -> dic
     unknown_teams: sorted team names not in canonical (after aliasing).
     incomplete_games_by_league: {league: games with datacompleteness != 'complete'}.
     """
-    cfg = yaml.safe_load(Path(aliases_path).read_text())
-    canonical = set(cfg["canonical"] or [])
+    canonical = set(_read_alias_config(aliases_path)["canonical"])
     # A game is incomplete if either of its rows is; league may be blank.
     flag = games["datacompleteness"].ne("complete")
     per_game = (
