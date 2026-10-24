@@ -3,6 +3,20 @@
     "SECURITY_GUIDANCE_COMMIT_REVIEW": "off",
     "ENABLE_STOP_REVIEW": "0"
   },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(gh pr create:*)",
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"PR created. Now run the security-review skill on this branch (diff vs origin/main) and post its findings as a PR comment with gh pr comment, or post \\\"no findings\\\".\"}}'"
+          }
+        ]
+      }
+    ]
+  },
   "permissions": {
     "allow": [
       "Bash(git add *)",

@@ -221,3 +221,34 @@ def test_empty_alias_table_is_fine(tmp_path):
     path.write_text("canonical: []\naliases: {}\n")
     df = load_games(write_csv(tmp_path, game("g1")), path)
     assert ingest_report(df, path)["unknown_teams"] == ["A", "B"]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "",
+        "   \n",
+        "canonical: []\n",  # no aliases key
+        "aliases: {}\n",  # no canonical key
+        "canonical: []\naliases: [Foo]\n",  # list, not a mapping
+        "canonical: []\naliases:\n  Foo:\n",  # Foo maps to nothing
+        "canonical: []\naliases:\n  null: Foo\n",  # blank key would rename blank teams
+        "canonical: []\naliases:\n  yes: Foo\n",  # YAML turns yes into True
+        "canonical: [null, 2024]\naliases: {}\n",  # canonical items must be names
+        "canonical: [[A]]\naliases: {}\n",  # unhashable item
+    ],
+)
+def test_malformed_alias_config_raises_value_error(tmp_path, text):
+    path = tmp_path / "bad.yaml"
+    path.write_text(text)
+    with pytest.raises(ValueError, match="bad.yaml"):
+        load_games(write_csv(tmp_path, game("g1")), path)
+    good = load_games(write_csv(tmp_path, game("g1")), _good(tmp_path))
+    with pytest.raises(ValueError, match="bad.yaml"):
+        ingest_report(good, path)
+
+
+def _good(tmp_path):
+    path = tmp_path / "good.yaml"
+    path.write_text("canonical: []\naliases: {}\n")
+    return path

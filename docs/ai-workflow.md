@@ -12,7 +12,10 @@ that mistakes get caught. Modelling decisions are mine and are logged in [decisi
   and I approve or correct it first.
 - **Tests first:** I write or approve tests for logic with known right answers (Elo update,
   Bo3/Bo5 maths, Swiss rules, odds summing to 100%), then Claude implements until they pass.
-- **Hooks:** No custom hooks yet. Guardrails are permission rules in `.claude/settings.json`:
+- **Hooks:** One custom hook: after a successful `gh pr create`, it tells Claude to run
+  `/security-review` and post the result on the PR. It exists because the plugin's push sweep did
+  not fire on PR #4 or #5 (`~/.claude/security/log.txt`: "Push sweep: no push-success signal in
+  bash output"), and the plugin deliberately ignores `gh pr create`. Guardrails are permission rules in `.claude/settings.json`:
   `Edit(data/raw/**)` and `git add` on raw data are denied, force-pushes and pushes to `main`
   are denied, `--no-verify` and `--amend` are denied, and `git push`, `gh pr create` and
   `gh pr merge` ask first. The `security-guidance` plugin (user level) used to review every
@@ -46,7 +49,16 @@ smaller context matter as much as a cheaper model.
 | **Before:** Elo time-decay (PR #2), main session | claude-opus-5-5 | 13 min, tests green first run | none | 23,638 | 112,080 | 1,471,504 |
 | Before: reviewer subagent | claude-opus-5-5 | | | 3,783 | 48,109 | 220,478 |
 | Before: 3 per-commit security reviews | claude-opus-4-7 | | | 4,021 | 48,634 | 168,400 |
-| **After:** ingest task | _(fill in)_ | _(fill in)_ | _(fill in)_ | _(fill in)_ | _(fill in)_ | _(fill in)_ |
+| **After:** ingest task, Opus | claude-opus-5-5 | 10m25s wall clock (about 3m40s active), tests green first run | none | 10,823 | 64,660 | 223,479 |
+| After: ingest task, Sonnet | claude-sonnet-5-5 | | | 13,715 | 63,014 | 946,293 |
+| After: reviewer subagent | claude-opus-5-5 | 7 findings (1 High) | | | | |
+
+Ingest totals: 24,538 output / 127,674 cache creation / 1,169,772 cache read. Total output is
+similar to the Elo task (24.5k vs 23.6k), so the two tasks are comparable in size, but this is one
+task against one task, so it isn't evidence that Sonnet is cheaper.
+
+Lesson: enter plan mode before Claude starts reading files. Reading first and planning after
+builds the cache twice.
 
 ## Where AI went wrong, and how it was caught
 

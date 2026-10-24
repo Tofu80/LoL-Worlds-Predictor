@@ -103,7 +103,10 @@ these, stop and raise it.
   (`pytest` clean, `ruff` clean). `main` is protected on GitHub: no direct pushes, force-pushes or
   deletion. Never develop directly on `main`.
 - Run the `leakage-reviewer` agent (`.claude/agents/leakage-reviewer.md`) before every
-  `gh pr create`, and address or explain its findings in the PR description.
+  `gh pr create`. Every finding must be either fixed (with a test) or listed in the PR description
+  as an open decision (severity, what, options). None may be silently skipped.
+- A security review runs once per PR: a project hook in `.claude/settings.json` fires after a
+  successful `gh pr create` and tells Claude to run `/security-review` and post the result as a PR comment.
 - Write tests first for logic with known right answers (Elo, series maths, Swiss rules).
 - Keep changes small and commit-sized. Commit messages say *why*, not just what.
 - Log modelling decisions in `docs/decisions.md` with the date, decision, alternatives and evidence.
