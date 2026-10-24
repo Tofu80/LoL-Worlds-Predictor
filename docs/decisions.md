@@ -12,6 +12,36 @@ Each entry: what was decided, what else was considered, the evidence, and when t
 **Revisit if:**
 -->
 
+## 2026-10-24 — First backtest baseline (Elo is not yet better than a coin flip)
+**Decision:** `backtest_worlds` scores every WLDs game on or after `start_date` (play-in start) in
+the same calendar year, per game (not per series), from p(blue wins). Games sharing a timestamp are all
+predicted before any of them updates the ratings. `cutoff_date > start_date` raises (a scored game's
+result would already be in the starting ratings). Non-WLDs and qualifier games after the cutoff update
+ratings without being scored. Config: K=32, initial 1500, `k_scale`, half-life 182 days.
+**Alternatives considered:** Sequential (date, gameid) updates (a same-timestamp game could see its
+neighbour's result); scoring qualifiers (not the Worlds field).
+**Evidence:** `python -m worlds.backtest`, log loss / Brier (0.5 baseline: 0.6931 / 0.2500):
+
+| mode | 2023 (n=110) | 2024 (n=106) | 2025 (n=84) | pooled (n=300) |
+|---|---|---|---|---|
+| in_tournament | 0.6998 / 0.2526 | 0.7299 / 0.2663 | 0.6788 / 0.2434 | 0.7045 / 0.2549 |
+| frozen | 0.7103 / 0.2580 | 0.7597 / 0.2786 | 0.7083 / 0.2555 | 0.7272 / 0.2646 |
+
+In-tournament updates beat frozen in every year (pooled 0.7045 vs 0.7272), but both are worse than
+constant 0.5. Pooled calibration (in_tournament, favourite's view): [0.5,0.6) n=154 predicted 0.548,
+observed 0.455; [0.6,0.7) n=118, 0.643 vs 0.602; [0.7,0.8) n=27, 0.742 vs 0.519; [0.8,0.9) n=1.
+Favourite accuracy 51.7% (SE about 2.9% at n=300). Flipping the predictions is worse (0.7500), so it
+is not an inverted sign. Blue side won 55.3% of the scored games (56.4% of all WLDs rows), which the
+model ignores.
+**Open (modelling choices for Phu, none applied):** (1) a blue-side term; (2) regional rating drift
+(see "Canonical names" known issue), since cross-region links are thin; (3) K and the half-life
+(`k_scale` shrinks old games' K, so ratings may sit close to 1500). These belong to the sweeps
+that are out of scope for this PR.
+**K weighting:** with `k_scale`, games before `cutoff_date` use decayed K but every game after it
+uses full K. The backtest runs with cutoff = start_date, so this only matters if a cutoff earlier than
+start_date is ever used.
+**Revisit if:** Any of the above changes the pooled in_tournament log loss.
+
 ## 2026-10-23 — Time decay method: Option A (scale K by game age)
 **Decision:** When replaying games in date order, scale each game's K by
 `weight = exp(-ln2 * age_days / decay_half_life_days)`. Only games with `date < cutoff_date` are
