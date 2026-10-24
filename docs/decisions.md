@@ -81,3 +81,15 @@ calibration table. Compare against betting odds after removing the bookmaker mar
 **Alternatives considered:** Accuracy (rejected: ignores confidence).
 **Evidence:** N/A (this sets the yardstick for every other decision).
 **Revisit if:** Betting odds can't be found for enough matches.
+
+## 2026-10-24 — Ingest validation: raise on bad games, report unknown teams
+**Decision:** `load_games` raises `ValueError` (listing gameids) for NaT dates and for any game whose
+two rows don't share a date, have opposite sides, different teams (after aliasing) and exactly one
+win. Rows are never dropped. Dates stay timezone-naive. Unknown team names and
+`datacompleteness != "complete"` games are kept and returned by `ingest_report`; `main` refuses to
+write parquet while unknown teams exist.
+**Alternatives considered:** Warning instead of raising (lets a corrupt game into the ratings);
+raising on unknown teams inside `load_games` (unusable while `canonical` is empty).
+**Evidence:** `tests/test_ingest.py` (malformed-game cases, report, `compute_ratings` round trip).
+**Revisit if:** Real Oracle's Elixir files contain rows that legitimately fail these checks (blank
+team names in partial-data leagues), which would need an explicit exclusion list in `config/`.
