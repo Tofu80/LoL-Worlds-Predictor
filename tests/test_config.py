@@ -86,11 +86,23 @@ def test_alias_names_are_not_also_canonical():
     assert not both, f"alias key is also canonical: {sorted(both)}"
 
 
-def test_league_alias_targets_are_not_canonical_and_not_worlds_teams():
+MERGES = {("Team Secret", "Team Secret Whales")}  # same roster, by playername overlap
+
+
+def test_league_alias_targets_are_new_names_or_listed_merges():
     cfg = yaml.safe_load((CONFIG / "team_aliases.yaml").read_text())
     rules = cfg.get("league_aliases") or []
     assert any(r["from"] == "Movistar KOI" for r in rules)
-    targets = {r["to"] for r in rules}
-    assert not targets & set(cfg["canonical"])
+    assert any(r["from"] == "Team Secret" and r["leagues"] == ["EWC"] for r in rules)
     teams = yaml.safe_load((CONFIG / "worlds_2026.yaml").read_text())["teams"]
-    assert not targets & set(teams)
+    for r in rules:
+        if (r["from"], r["to"]) in MERGES:
+            assert r["to"] in cfg["canonical"]
+        else:  # a split: the new name must not collide with a known team
+            assert r["to"] not in cfg["canonical"]
+            assert r["to"] not in teams
+
+
+def test_ingest_config_excludes_kespa_cup():
+    cfg = yaml.safe_load((CONFIG / "ingest.yaml").read_text())
+    assert {"KeSPA Cup", "CDF"} <= set(cfg["excluded_leagues"])

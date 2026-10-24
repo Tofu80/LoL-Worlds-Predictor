@@ -60,7 +60,6 @@ canonical:
   - Team BDS
   - Team Heretics
   - Team Liquid Alienware
-  - Team Secret
   - Team Secret Whales
   - Team Vitality
   - Team WE
@@ -81,3 +80,8 @@ league_aliases:
   - from: Movistar KOI
     to: Movistar KOI (Spain)
     leagues: [LVP SL, EM, IC]
+  # EWC 2026 "Team Secret" is the Team Secret Whales roster (Bie, Dire, Eddie, Hizto, Pun);
+  # the VCS 2023-24 "Team Secret" is a different team and stays separate.
+  - from: Team Secret
+    to: Team Secret Whales
+    leagues: [EWC]

@@ -82,6 +82,17 @@ def _read_exclusions(path: Path) -> dict[str, str]:
     return out
 
 
+def _read_excluded_leagues(path: Path) -> list[str]:
+    """Return config/ingest.yaml `excluded_leagues` ([] if absent); ValueError if malformed."""
+    cfg = yaml.safe_load(Path(path).read_text()) or {}
+    leagues = cfg.get("excluded_leagues") or []
+    if not isinstance(leagues, list) or not all(
+        isinstance(x, str) and x for x in leagues
+    ):
+        raise ValueError(f"{path}: 'excluded_leagues' must be a list of league names")
+    return leagues
+
+
 def _fail(problem: str, gameids) -> str:
     ids = sorted(map(str, gameids))
     return f"{problem}: {len(ids)} gameid(s), first {ids[:10]}"
@@ -133,6 +144,7 @@ def load_games(
     path: Path,
     aliases_path: Path = ALIASES_PATH,
     exclusions_path: Path = EXCLUSIONS_PATH,
+    ingest_config_path: Path = INGEST_CONFIG_PATH,
 ) -> pd.DataFrame:
     """Load one Oracle's Elixir CSV; return validated team rows (position == 'team').
 
@@ -140,8 +152,10 @@ def load_games(
     The raw file is only read. Team names are mapped through the aliases in
     aliases_path (the only place names are rewritten; league_aliases there first rename
     a name that two teams share, by league). The only games dropped are
-    the gameids listed in exclusions_path, before validation; they are recorded in
-    df.attrs["excluded_gameids"] (see ingest_report). Rows with
+    those in a league listed under `excluded_leagues` in ingest_config_path (counted in
+    df.attrs["excluded_by_league"]) and the gameids listed in exclusions_path that
+    still fail validation (df.attrs["excluded_gameids"]; see ingest_report). A listed
+    gameid that now validates raises ValueError: remove it from the list. Rows with
     datacompleteness != 'complete' and unknown team names are kept (see
     ingest_report).
 
@@ -161,12 +175,17 @@ def load_games(
         usecols=[*COLUMNS, "position"],
         dtype={"gameid": str, "patch": str},
     )
+    skip = _read_excluded_leagues(ingest_config_path)
+    in_skipped = raw["league"].isin(skip)
+    skipped_teams = raw[in_skipped & (raw["position"] == "team")]
+    excluded_by_league = {  # team rows / 2, so a blank gameid is still counted
+        k: int(v) // 2 for k, v in skipped_teams.groupby("league").size().items()
+    }
+    raw = raw[~in_skipped]
     excluded = _read_exclusions(exclusions_path)
-    dropped = raw["gameid"].isin(excluded)
-    excluded_gameids = set(raw.loc[dropped, "gameid"])
-    raw = raw[~dropped]
+    listed = set(raw["gameid"]) & set(excluded)
     df = raw[raw["position"] == "team"][COLUMNS].reset_index(drop=True)
-    no_team_rows = set(raw["gameid"].dropna()) - set(df["gameid"].dropna())
+    no_team_rows = set(raw["gameid"].dropna()) - set(df["gameid"].dropna()) - listed
     if no_team_rows:
         raise ValueError(_fail("gameid with no team rows", no_team_rows))
     df["date"] = pd.to_datetime(df["date"], format="ISO8601", errors="coerce")
@@ -175,9 +194,21 @@ def load_games(
         rows = df["league"].isin(rule["leagues"]) & (df["teamname"] == rule["from"])
         df.loc[rows, "teamname"] = rule["to"]
     df["teamname"] = df["teamname"].replace(alias_cfg["aliases"])
+    is_listed = df["gameid"].isin(listed)
+    for gid in sorted(listed & set(df["gameid"])):
+        try:
+            _validate(df[df["gameid"] == gid])
+        except ValueError:
+            continue  # still broken: dropped below
+        msg = (
+            f"{gid}: exclusion no longer needed, remove it from {exclusions_path.name}"
+        )
+        raise ValueError(msg)
+    df = df[~is_listed].reset_index(drop=True)
     _validate(df)
     df["result"] = df["result"].astype(int)
-    df.attrs["excluded_gameids"] = sorted(excluded_gameids)  # list: parquet-safe
+    df.attrs["excluded_gameids"] = sorted(listed)  # list: parquet-safe
+    df.attrs["excluded_by_league"] = excluded_by_league
     return df
 
 
@@ -196,6 +227,7 @@ def ingest_report(
     required_teams: list[str] | None = None,
     exclusions_path: Path = EXCLUSIONS_PATH,
     excluded_gameids: set[str] | None = None,
+    excluded_leagues: dict[str, int] | None = None,
 ) -> dict:
     """Report what load_games kept but the model should know about.
 
@@ -205,10 +237,13 @@ def ingest_report(
     incomplete_games_by_league: {league: games with datacompleteness != 'complete'}.
     excluded_games: {gameid: reason} for listed games actually dropped.
     exclusions_not_found: listed gameids not in the file(s) loaded.
+    excluded_leagues: {league: games dropped} for leagues in `excluded_leagues` config.
+    excluded_leagues_not_found: configured leagues with no games dropped in any file
+        (e.g. Oracle's Elixir renamed the league, so the filter matches nothing).
 
     international_leagues defaults to config/ingest.yaml, required_teams to the
     `teams` of config/worlds_*.yaml, excluded_gameids to games.attrs (pass the union
-    across files when games was concatenated).
+    across files when games was concatenated); excluded_leagues likewise (summed).
     """
     canonical = set(_read_alias_config(aliases_path)["canonical"])
     if international_leagues is None:
@@ -218,6 +253,8 @@ def ingest_report(
         required_teams = _worlds_teams()
     if excluded_gameids is None:
         excluded_gameids = set(games.attrs.get("excluded_gameids", []))
+    if excluded_leagues is None:
+        excluded_leagues = games.attrs.get("excluded_by_league", {})
     listed = _read_exclusions(exclusions_path)
     # A game is incomplete if either of its rows is; league may be blank.
     flag = games["datacompleteness"].ne("complete")
@@ -242,6 +279,10 @@ def ingest_report(
             g: listed[g] for g in sorted(excluded_gameids & set(listed))
         },
         "exclusions_not_found": sorted(set(listed) - set(excluded_gameids)),
+        "excluded_leagues": dict(excluded_leagues),
+        "excluded_leagues_not_found": sorted(
+            set(_read_excluded_leagues(INGEST_CONFIG_PATH)) - set(excluded_leagues)
+        ),
     }
 
 
@@ -259,13 +300,21 @@ def main() -> None:
         sys.exit(f"No CSVs found in {RAW_DIR}/ (download Oracle's Elixir files there)")
     frames = [load_games(p) for p in paths]
     excluded = {g for f in frames for g in f.attrs["excluded_gameids"]}
+    by_league: dict[str, int] = {}
+    for f in frames:
+        for k, v in f.attrs["excluded_by_league"].items():
+            by_league[k] = by_league.get(k, 0) + v
     games = pd.concat(frames, ignore_index=True)
     _validate(games)  # catches a gameid that appears in two files
-    report = ingest_report(games, excluded_gameids=excluded)
+    report = ingest_report(games, excluded_gameids=excluded, excluded_leagues=by_league)
     for p, f in zip(paths, frames, strict=True):
-        print(f"{p.name}: {len(f) // 2} games")
+        dropped = f.attrs["excluded_by_league"]
+        note = f" (dropped by league: {dropped})" if dropped else ""
+        print(f"{p.name}: {len(f) // 2} games{note}")
     print(f"{len(games) // 2} games from {len(paths)} file(s)")
     print(f"Excluded games: {report['excluded_games']}")
+    print(f"Excluded games by league: {report['excluded_leagues']}")
+    print(f"Excluded leagues not found: {report['excluded_leagues_not_found']}")
     print(f"Exclusions not found in files: {report['exclusions_not_found']}")
     print(f"Incomplete games by league: {report['incomplete_games_by_league']}")
     print(f"Other (non-canonical, pass-through) teams: {report['other_teams']}")

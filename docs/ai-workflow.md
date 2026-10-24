@@ -71,7 +71,13 @@ The most useful part of this file. Write entries as they happen.
 **Fix and new rule:** (what changed in code / CLAUDE.md / tests)
 -->
 
-_(none yet)_
+### 2026-10-24 — Team Secret alias judged on dates only
+**What Claude did:** In PR #8, kept `Team Secret` (EWC 2026) separate from `Team Secret Whales` because the
+EWC games fell in different weeks and looked like a name reuse by another roster.
+**How it was caught:** Phu compared playernames in data/raw: both names fielded the same five players
+(Bie, Dire, Eddie, Hizto, Pun).
+**Fix and new rule:** EWC-only league alias to Team Secret Whales (decisions.md). CLAUDE.md "Data notes":
+alias and team-identity decisions use playername overlap as evidence, not just leagues and dates.
 
 ## What I did myself
 

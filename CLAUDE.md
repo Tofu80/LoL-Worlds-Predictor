@@ -61,6 +61,7 @@ Update this section when the real commands differ.
   usable even when detailed stats aren't.
 - Team names change between seasons (rebrands, sponsor names). Keep the mapping in a single
   alias table in `config/`, not scattered string fixes.
+- Alias and team-identity decisions use playername overlap as evidence, not just leagues and dates.
 - Cross-region strength comes only from international events (MSI, Worlds, other inter-league events).
   Keep this in mind for any Elo change, because regional ratings float otherwise.
 - Riot API (solo queue) is optional and has no LPL coverage, so it can't be a required input.

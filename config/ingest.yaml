@@ -3,3 +3,8 @@
 # Note: the label is not the same as "cross-region game". WLDs and EWC also contain
 # regional qualifier games (see docs/decisions.md).
 international_leagues: [WLDs, MSI, FST, EWC, ASI, DCGI]
+# Leagues whose games load_games drops (counted per league in the ingest report). KeSPA Cup:
+# T1, Gen.G, Hanwha Life, Dplus Kia, KT Rolster fielded academy players under main-team names
+# (docs/decisions.md, 2026-10-24). CDF (Coupe de France): Team BDS and Karmine Corp fielded
+# academy rosters under the main names (2023-09/10).
+excluded_leagues: [KeSPA Cup, CDF]

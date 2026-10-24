@@ -157,7 +157,7 @@ Note: 2023-10-09 has three WLDs games, Golden Guardians 0–3 Team BDS (the on-s
 Series), which count as qualifier rating data.
 **Revisit if:** Official dates are corrected.
 
-## 2026-10-24 — Aliases: Team Liquid → Team Liquid Alienware; Team Secret stays separate
+## 2026-10-24 — Aliases: Team Liquid → Team Liquid Alienware; Team Secret stays separate (Team Secret part SUPERSEDED, see "Team Secret EWC rows are Team Secret Whales")
 **Decision:** Alias `Team Liquid` → `Team Liquid Alienware` (canonical, and the name used in
 `config/worlds_2026.yaml`). `Team Secret` is NOT aliased to `Team Secret Whales`. KeSPA Cup and AC stay
 out of the international league list. `worlds_2026.yaml` `teams` holds the 16 Swiss Stage teams.
@@ -195,3 +195,43 @@ team's rating).
 (league alias cases), `tests/test_config.py`.
 **Revisit if:** The Spanish-league team plays in another league label, or the name `Movistar KOI` appears
 in LVP SL/EM/IC after the 2025 rebrand.
+
+## 2026-10-24 — Team Secret EWC rows are Team Secret Whales (supersedes the Team Secret part above)
+**Decision (Phu):** League-bounded alias in `league_aliases`: EWC `Team Secret` → `Team Secret Whales`.
+VCS 2023–24 `Team Secret` (147 games) stays a separate pass-through team and is no longer in `canonical`.
+**Alternatives considered:** Keeping them separate (the earlier decision, judged on dates only); a plain alias
+(would merge the unrelated VCS team).
+**Evidence:** Playername overlap in data/raw: the 8 EWC `Team Secret` games (2026-05-20..07-15) were played by
+Bie, Dire, Eddie, Hizto, Pun, the same five as Team Secret Whales in EWC, FST and MSI 2026 (LCP adds Hiro02).
+Tests: `tests/test_ingest.py` (EWC → TSW, VCS untouched), `tests/test_config.py` (the target-collision test now
+allows only merges listed in `MERGES`).
+**Revisit if:** A non-EWC league also uses the name `Team Secret` for this roster.
+
+## 2026-10-24 — KeSPA Cup excluded (academy rosters under main-team names)
+**Decision (Phu):** `config/ingest.yaml` `excluded_leagues: [KeSPA Cup]`. `load_games` drops those games and
+`python -m worlds.ingest` reports the count per league: 49 (2024-11-30..12-08), 56 (2025-12-06..12-14), 61
+(2026-07-20..08-18), 166 total; none in 2023. In 2026, T1, Gen.G, Hanwha Life, Dplus Kia and KT Rolster
+fielded academy players (e.g. T1: Cloud, Cypher, Guti, Haetae, Painter).
+**Alternatives considered:** Renaming rows to separate "(KeSPA)" teams (opponents are mixed rosters too, so it
+adds noise); keeping them (contaminates the main teams' Elo right before Worlds).
+**Evidence:** Playername vs. the team's usual roster that quarter (modal team per player). Backtest effect not
+measured yet; only the 2024 edition precedes a backtest Worlds (2025), so 2023–25 log loss should barely move
+and the effect is mostly on 2026 ratings.
+**Revisit if:** The backtest shows the exclusion changes log loss (compare with and without).
+
+## 2026-10-24 — Stale exclusions raise
+**Decision (Phu, PR #8 open item 1, option a):** A gameid in `data_exclusions.yaml` is dropped only if it still
+fails validation. If it now validates, `load_games` raises ValueError naming the gameid ("exclusion no longer
+needed, remove it from data_exclusions.yaml").
+**Alternatives considered:** Keeping the silent drop (would hide a source fix and discard a good game).
+**Evidence:** `tests/test_ingest.py` (still-broken game dropped, fixed game raises).
+
+## 2026-10-24 — CDF (Coupe de France) excluded too
+**Decision (Phu):** `excluded_leagues: [KeSPA Cup, CDF]`. In CDF 2023 Team BDS (2 games, 2023-09-28) and
+Karmine Corp (3 games, 2023-09-29..10-04) fielded academy rosters under the main names, right before Worlds 2023.
+**Alternatives considered:** Excluding only the 5 flagged games (needs a gameid list that skips validation;
+a second mechanism for 5 games).
+**Evidence:** Playername vs. each team's usual roster that quarter. The whole league drops 141 games (72 in
+2023, 69 in 2024), including 4 unflagged Karmine Corp and 18 Solary games.
+**Revisit if:** The backtest shows the exclusion changes log loss.
+
