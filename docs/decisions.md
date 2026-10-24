@@ -156,3 +156,16 @@ on or after each start_date falls on that UTC day, and earlier WLDs games exist 
 Note: 2023-10-09 has three WLDs games, Golden Guardians 0–3 Team BDS (the on-site Worlds Qualifying
 Series), which count as qualifier rating data.
 **Revisit if:** Official dates are corrected.
+
+## 2026-10-24 — Aliases: Team Liquid → Team Liquid Alienware; Team Secret stays separate
+**Decision:** Alias `Team Liquid` → `Team Liquid Alienware` (canonical, and the name used in
+`config/worlds_2026.yaml`). `Team Secret` is NOT aliased to `Team Secret Whales`. KeSPA Cup and AC stay
+out of the international league list. `worlds_2026.yaml` `teams` holds the 16 Swiss Stage teams.
+**Alternatives considered:** Keeping `Team Liquid` canonical (data name; rejected so the Worlds list
+matches the official 2026 name). Aliasing Team Secret: it played VCS to 2024-08-10 and reappears only
+in EWC 2026-05-20..07-15 against GAM, Karmine Corp and Sentinels, in weeks different from Team Secret
+Whales' EWC games (05-05..05-14), so it looks like a name reuse by another roster.
+**Evidence:** Per-name league and date ranges from the 2023–26 data. No other aliases applied; the
+MAD Lions KOI → Movistar KOI, MGN Vikings Esports → MVK Esports, Fluxo → Fluxo W7M and Team Whales →
+Team Secret Whales candidates are still unanswered. NRG's 580-day gap is noted, not resolved.
+**Revisit if:** The Team Liquid history before the rebrand should not carry over to the new name.

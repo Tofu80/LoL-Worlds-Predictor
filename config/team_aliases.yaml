@@ -61,7 +61,7 @@ canonical:
   - T1
   - Team BDS
   - Team Heretics
-  - Team Liquid
+  - Team Liquid Alienware
   - Team Secret
   - Team Secret Whales
   - Team Vitality
@@ -71,4 +71,5 @@ canonical:
   - Vivo Keyd Stars
   - Weibo Gaming
   - paiN Gaming
-aliases: {}
+aliases:
+  Team Liquid: Team Liquid Alienware

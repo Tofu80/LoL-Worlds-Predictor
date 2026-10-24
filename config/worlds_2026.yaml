@@ -3,7 +3,23 @@
 year: 2026
 # Canonical names (must appear in team_aliases.yaml "canonical").
 # Fill in from the official qualified-teams list.
-teams: []
+teams:
+  - Gen.G
+  - Anyone's Legend
+  - Team Liquid Alienware
+  - G2 Esports
+  - LØS
+  - Team Secret Whales
+  - Hanwha Life Esports
+  - Bilibili Gaming
+  - LYON
+  - Movistar KOI
+  - T1
+  - Top Esports
+  - CTBC Flying Oyster
+  - Invictus Gaming
+  - Dplus Kia
+  - Karmine Corp
 swiss:
   total_teams: 16
   advance: 8
