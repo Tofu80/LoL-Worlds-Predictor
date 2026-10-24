@@ -1,0 +1,5 @@
+# Leagues whose team names must be in team_aliases.yaml "canonical" (unknown ones stop
+# `python -m worlds.ingest`). Every other name passes through as its own team.
+# Note: the label is not the same as "cross-region game". WLDs and EWC also contain
+# regional qualifier games (see docs/decisions.md).
+international_leagues: [WLDs, MSI, FST, EWC, ASI, DCGI]

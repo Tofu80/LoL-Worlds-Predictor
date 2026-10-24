@@ -56,3 +56,25 @@ def test_backtest_years_configured():
     cfg = yaml.safe_load((CONFIG / "backtest.yaml").read_text())
     assert set(cfg["tournaments"]) == {2023, 2024, 2025}
     assert cfg["rating_updates"] in {"in_tournament", "frozen"}
+
+
+def test_backtest_start_dates_set_and_usable_as_timestamps():
+    import pandas as pd
+
+    cfg = yaml.safe_load((CONFIG / "backtest.yaml").read_text())
+    starts = {y: pd.Timestamp(t["start_date"]) for y, t in cfg["tournaments"].items()}
+    assert starts == {
+        2023: pd.Timestamp("2023-10-10"),
+        2024: pd.Timestamp("2024-09-25"),
+        2025: pd.Timestamp("2025-10-14"),
+    }
+
+
+def test_data_exclusions_and_ingest_config_load():
+    ex = yaml.safe_load((CONFIG / "data_exclusions.yaml").read_text())["exclusions"]
+    assert {e["gameid"] for e in ex} >= {
+        "ESPORTSTMNT01_3408461",
+        "LOLTMNT01_52116",
+    }
+    intl = yaml.safe_load((CONFIG / "ingest.yaml").read_text())["international_leagues"]
+    assert {"WLDs", "MSI", "FST", "EWC"} <= set(intl)

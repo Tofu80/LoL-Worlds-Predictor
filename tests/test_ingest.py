@@ -5,6 +5,8 @@ import yaml
 from worlds.elo import compute_ratings
 from worlds.ingest import COLUMNS, ingest_report, load_games, write_processed
 
+INTL = ["WLDs"]  # explicit, so tests don't depend on config/ingest.yaml
+
 
 def game(
     gid,
@@ -49,8 +51,23 @@ def aliases(tmp_path):
     return path
 
 
-def load(tmp_path, rows, aliases):
-    return load_games(write_csv(tmp_path, rows), aliases)
+@pytest.fixture
+def exclusions(tmp_path):
+    path = tmp_path / "exclusions.yaml"
+    entry = {"gameid": "g_void", "reason": "both team rows have result 0"}
+    path.write_text(yaml.safe_dump({"exclusions": [entry]}))
+    return path
+
+
+def load(tmp_path, rows, aliases, exclusions=None):
+    kwargs = {} if exclusions is None else {"exclusions_path": exclusions}
+    return load_games(write_csv(tmp_path, rows), aliases, **kwargs)
+
+
+def report(df, aliases, intl=INTL, required=(), **kw):
+    return ingest_report(
+        df, aliases, international_leagues=intl, required_teams=list(required), **kw
+    )
 
 
 def test_returns_team_rows_only_with_expected_columns(tmp_path, aliases):
@@ -132,12 +149,14 @@ def test_two_aliases_of_one_team_in_a_game_raise(tmp_path, aliases):
         load(tmp_path, rows, aliases)
 
 
-def test_aliases_applied_and_unknown_teams_reported_but_kept(tmp_path, aliases):
-    rows = game("g1", a="A Old", b="B") + game("g2", a="Zed", b="Yak")
+def test_aliases_applied_and_unknown_international_teams_reported_but_kept(
+    tmp_path, aliases
+):
+    rows = game("g1", a="A Old", b="B") + game("g2", a="Zed", b="Yak", league="WLDs")
     df = load(tmp_path, rows, aliases)
     assert "A Old" not in set(df["teamname"])
     assert {"A", "Zed", "Yak"} <= set(df["teamname"])
-    assert ingest_report(df, aliases)["unknown_teams"] == ["Yak", "Zed"]
+    assert report(df, aliases)["unknown_teams"] == ["Yak", "Zed"]
 
 
 def test_incomplete_rows_kept_and_counted_per_game_by_league(tmp_path, aliases):
@@ -149,7 +168,7 @@ def test_incomplete_rows_kept_and_counted_per_game_by_league(tmp_path, aliases):
     )
     df = load(tmp_path, rows, aliases)
     assert len(df) == 8
-    assert ingest_report(df, aliases)["incomplete_games_by_league"] == {
+    assert report(df, aliases)["incomplete_games_by_league"] == {
         "LCK": 1,
         "LPL": 2,
     }
@@ -211,7 +230,7 @@ def test_report_counts_game_incomplete_if_either_row_is(tmp_path, aliases):
     rows[1]["datacompleteness"] = "partial"
     rows += game("g2", league=None, complete="partial")
     df = load(tmp_path, rows, aliases)
-    counts = ingest_report(df, aliases)["incomplete_games_by_league"]
+    counts = report(df, aliases)["incomplete_games_by_league"]
     assert counts["LPL"] == 1
     assert sum(counts.values()) == 2  # the league-less game is not dropped
 
@@ -220,7 +239,7 @@ def test_empty_alias_table_is_fine(tmp_path):
     path = tmp_path / "empty.yaml"
     path.write_text("canonical: []\naliases: {}\n")
     df = load_games(write_csv(tmp_path, game("g1")), path)
-    assert ingest_report(df, path)["unknown_teams"] == ["A", "B"]
+    assert report(df, path, required=["A", "B"])["unknown_teams"] == ["A", "B"]
 
 
 @pytest.mark.parametrize(
@@ -245,10 +264,143 @@ def test_malformed_alias_config_raises_value_error(tmp_path, text):
         load_games(write_csv(tmp_path, game("g1")), path)
     good = load_games(write_csv(tmp_path, game("g1")), _good(tmp_path))
     with pytest.raises(ValueError, match="bad.yaml"):
-        ingest_report(good, path)
+        report(good, path)
 
 
 def _good(tmp_path):
     path = tmp_path / "good.yaml"
     path.write_text("canonical: []\naliases: {}\n")
     return path
+
+
+# --- data exclusions (decision 1)
+
+
+def void_game(gid="g_void"):
+    rows = game(gid)
+    rows[0]["result"] = 0  # both team rows now 0
+    return rows
+
+
+def test_listed_void_game_is_dropped_and_reported(tmp_path, aliases, exclusions):
+    df = load(tmp_path, game("g1") + void_game(), aliases, exclusions)
+    assert set(df["gameid"]) == {"g1"}
+    rep = report(df, aliases, exclusions_path=exclusions)
+    assert rep["excluded_games"] == {"g_void": "both team rows have result 0"}
+    assert rep["exclusions_not_found"] == []
+
+
+def test_unlisted_void_game_still_raises(tmp_path, aliases, exclusions):
+    rows = game("g1") + void_game("g_other_void")
+    with pytest.raises(ValueError, match="g_other_void"):
+        load(tmp_path, rows, aliases, exclusions)
+
+
+def test_listed_gameid_not_in_file_is_reported_not_found(tmp_path, aliases, exclusions):
+    df = load(tmp_path, game("g1"), aliases, exclusions)
+    rep = report(df, aliases, exclusions_path=exclusions)
+    assert rep["excluded_games"] == {}
+    assert rep["exclusions_not_found"] == ["g_void"]
+
+
+def test_exclusion_dropped_in_another_file_is_not_reported_missing(
+    tmp_path, aliases, exclusions
+):
+    df = load(tmp_path, game("g1"), aliases, exclusions)
+    rep = report(df, aliases, exclusions_path=exclusions, excluded_gameids={"g_void"})
+    assert rep["exclusions_not_found"] == []
+    assert rep["excluded_games"] == {"g_void": "both team rows have result 0"}
+
+
+def test_exclusion_drops_only_the_listed_game(tmp_path, aliases, exclusions):
+    df = load(tmp_path, void_game() + game("g2"), aliases, exclusions)
+    assert set(df["gameid"]) == {"g2"}
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "",
+        "exclusions: {}\n",
+        "exclusions: [g1]\n",
+        "exclusions:\n  - {gameid: g1}\n",  # no reason
+        "exclusions:\n  - {gameid: g1, reason: ''}\n",
+        "exclusions:\n  - {gameid: 12, reason: x}\n",
+        "exclusions:\n  - {gameid: g1, reason: x}\n  - {gameid: g1, reason: y}\n",
+    ],
+)
+def test_malformed_exclusions_config_raises_value_error(tmp_path, aliases, text):
+    path = tmp_path / "badx.yaml"
+    path.write_text(text)
+    with pytest.raises(ValueError, match="badx.yaml"):
+        load(tmp_path, game("g1"), aliases, path)
+
+
+def test_empty_exclusions_list_is_fine(tmp_path, aliases):
+    path = tmp_path / "x.yaml"
+    path.write_text("exclusions: []\n")
+    assert len(load(tmp_path, game("g1"), aliases, path)) == 2
+
+
+# --- timestamps, not calendar dates (decision 2)
+
+
+@pytest.mark.parametrize(
+    ("cutoff", "expected_teams"),
+    [
+        ("2026-10-23 20:00", set()),  # 00:30 UTC next day is after this cutoff
+        ("2026-10-24 01:00", {"A", "B"}),  # and before this one, same calendar day
+        ("2026-10-24 00:30:00", set()),  # at the cutoff is not "before" it
+    ],
+)
+def test_game_after_midnight_utc_is_compared_by_timestamp(
+    tmp_path, aliases, cutoff, expected_teams
+):
+    df = load(tmp_path, game("g1", date="2026-10-24 00:30:00"), aliases)
+    ratings = compute_ratings(df, pd.Timestamp(cutoff), 32, 1500, 182, "none")
+    assert set(ratings) == expected_teams
+
+
+def test_evening_game_is_not_before_a_date_only_cutoff_of_that_day(tmp_path, aliases):
+    df = load(tmp_path, game("g1", date="2026-10-23 20:00:00"), aliases)
+    ratings = compute_ratings(df, pd.Timestamp("2026-10-23"), 32, 1500, 182, "none")
+    assert ratings == {}
+
+
+# --- canonical scope (decision 3)
+
+
+def test_unknown_domestic_team_passes_through_and_is_counted(tmp_path, aliases):
+    rows = game("g1", a="Zed", b="Yak", league="LCK") + game("g2", a="A", b="B")
+    df = load(tmp_path, rows, aliases)
+    rep = report(df, aliases)
+    assert rep["unknown_teams"] == []
+    assert rep["other_teams"] == 2
+    assert {"Zed", "Yak"} <= set(df["teamname"])
+
+
+def test_unknown_team_in_international_league_is_reported(tmp_path, aliases):
+    rows = game("g1", a="Zed", b="A", league="LCK") + game(
+        "g2", a="Yak", b="B", league="WLDs"
+    )
+    rep = report(load(tmp_path, rows, aliases), aliases)
+    assert rep["unknown_teams"] == ["Yak"]
+    assert rep["other_teams"] == 1  # Zed
+
+
+def test_required_team_missing_from_data_is_reported(tmp_path, aliases):
+    df = load(tmp_path, game("g1", league="LCK"), aliases)
+    assert report(df, aliases, required=["Ghost"])["unknown_teams"] == ["Ghost"]
+
+
+def test_required_team_that_is_canonical_is_fine(tmp_path, aliases):
+    df = load(tmp_path, game("g1", league="LCK"), aliases)
+    assert report(df, aliases, required=["A"])["unknown_teams"] == []
+
+
+def test_report_reads_international_leagues_from_config(tmp_path, aliases):
+    df = load(tmp_path, game("g1", a="Zed", league="WLDs"), aliases)
+    rep = ingest_report(
+        df, aliases, required_teams=[]
+    )  # leagues from config/ingest.yaml
+    assert rep["unknown_teams"] == ["Zed"]

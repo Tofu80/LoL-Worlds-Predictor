@@ -2,5 +2,73 @@
 #            neither canonical nor an alias is "unknown" and stops /worlds-pipeline.
 # aliases:   alternate or historical name -> canonical name.
 # Example:   canonical: ["Cloud9"]   aliases: {"Cloud9 Gold": "Cloud9"}
-canonical: []
+canonical:
+  - 100 Thieves
+  - Anyone's Legend
+  - BNK FEARX
+  - Bilibili Gaming
+  - CTBC Flying Oyster
+  - Cloud9
+  - DN SOOPers
+  - Deep Cross Gaming
+  - DetonatioN FocusMe
+  - Dignitas
+  - Disguised
+  - Dplus Kia
+  - EDward Gaming
+  - Estral Esports
+  - FURIA
+  - Fluxo W7M
+  - FlyQuest
+  - Fnatic
+  - Fukuoka SoftBank HAWKS gaming
+  - G2 Esports
+  - GAM Esports
+  - Galions
+  - Gen.G
+  - GiantX
+  - Golden Guardians
+  - Ground Zero Gaming
+  - HANJIN BRION
+  - Hanwha Life Esports
+  - Invictus Gaming
+  - JD Gaming
+  - KT Rolster
+  - Karmine Corp
+  - Kiwoom DRX
+  - LGD Gaming
+  - LNG Esports
+  - LOUD
+  - LYON
+  - Leviatan
+  - LØS
+  - MAD Lions KOI
+  - MGN Vikings Esports
+  - MVK Esports
+  - Movistar KOI
+  - Movistar R7
+  - NRG
+  - Natus Vincere
+  - Ninjas in Pyjamas
+  - Nongshim RedForce
+  - PSG Talon
+  - RED Canids
+  - SK Gaming
+  - Sentinels
+  - Shifters
+  - Shopify Rebellion
+  - Solary
+  - T1
+  - Team BDS
+  - Team Heretics
+  - Team Liquid
+  - Team Secret
+  - Team Secret Whales
+  - Team Vitality
+  - Team WE
+  - Team Whales
+  - Top Esports
+  - Vivo Keyd Stars
+  - Weibo Gaming
+  - paiN Gaming
 aliases: {}
