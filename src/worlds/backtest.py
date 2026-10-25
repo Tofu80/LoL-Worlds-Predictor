@@ -27,6 +27,9 @@ class BacktestResult:
     calibration: pd.DataFrame
     odds_log_loss: float | None  # None when no betting-odds data
     predictions: pd.DataFrame  # gameid, date, blue, red, p_blue, result (1 = blue won)
+    n_prestart_wlds: int = (
+        0  # same-year WLDs games before start_date: rated, not scored
+    )
 
 
 def log_loss(p, y) -> float:
@@ -184,7 +187,15 @@ def backtest_worlds(
                 ratings[g.blue], ratings[g.red] = elo.update_ratings(
                     rb, rr, float(g.result), k
                 )
-    return score(pd.DataFrame(rows, columns=PREDICTION_COLUMNS))
+    result = score(pd.DataFrame(rows, columns=PREDICTION_COLUMNS))
+    result.n_prestart_wlds = int(
+        (
+            (table["league"] == "WLDs")
+            & (table["date"] < start)
+            & (table["date"].dt.year == year)
+        ).sum()
+    )
+    return result
 
 
 def _is_scored(g, start: pd.Timestamp, year: int) -> bool:
@@ -205,16 +216,25 @@ def main() -> None:
     }
     print(f"{'mode':<14}{'year':<8}{'n':>5}{'log loss':>10}{'Brier':>9}")
     pooled_by_mode = {}
+    prestart = {}
     for mode in RATING_UPDATES:
         cfg = {**config, "rating_updates": mode}
         parts = []
         for year, t in config["tournaments"].items():
             r = backtest_worlds(year, games, cfg, pd.Timestamp(t["start_date"]))
             parts.append(r.predictions)
+            prestart[year] = r.n_prestart_wlds  # same in both modes
             print(_fmt(mode, year, r))
         pooled_by_mode[mode] = score(pd.concat(parts))
         print(_fmt(mode, "pooled", pooled_by_mode[mode]))
     print(f"{'0.5 baseline':<14}{'':<8}{'':>5}{math.log(2):>10.4f}{0.25:>9.4f}")
+    print()
+    for year, n in prestart.items():
+        start = config["tournaments"][year]["start_date"]
+        print(
+            f"{year}: {n} WLDs games before start_date {start} "
+            "(qualifiers, rating data only, not scored)"
+        )
     chosen = config["rating_updates"]
     print(f"\nPooled calibration ({chosen}), favourite's view:")
     print(

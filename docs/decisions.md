@@ -265,3 +265,12 @@ a second mechanism for 5 games).
 2023, 69 in 2024), including 4 unflagged Karmine Corp and 18 Solary games.
 **Revisit if:** The backtest shows the exclusion changes log loss.
 
+
+## 2026-10-26 — Report pre-start WLDs games
+**Decision (Phu, PR #11 leakage review Low, option 1):** `backtest_worlds` returns `n_prestart_wlds` (WLDs games in
+`year` with `date < start_date`) and `python -m worlds.backtest` prints one line per year. Counts: 2023 = 27,
+2024 = 26, 2025 = 12. Reporting only: no prediction or log-loss change.
+**Why `start_date` stays:** The 2023 games just before 2023-10-10 are the Worlds Qualifying Series (GG 3–0 BDS,
+2023-10-09, LoL Park), a qualifier. The 2024 and 2025 pre-start games end 11 and 17 days before play-ins, so they are
+regional qualifiers. All stay rating data, not scored.
+**Source:** https://www.esports.net/news/lol/lol-worlds-qualifying-series/
