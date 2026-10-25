@@ -72,6 +72,7 @@ def test_backtest_result_fields():
         "calibration",
         "odds_log_loss",
         "predictions",
+        "n_prestart_wlds",
     }
 
 
@@ -227,6 +228,37 @@ def test_wlds_game_in_another_year_is_not_scored():
         ]
     )
     assert run(games, CONFIG).predictions["gameid"].tolist() == ["g1"]
+
+
+def test_prestart_wlds_games_are_counted_for_the_year_only():
+    games = make_games(
+        [
+            ("g0", "2025-10-01 12:00", "LEC", "A", "B", True),
+            ("q1", "2025-10-05 12:00", "WLDs", "A", "B", True),
+            ("q2", "2025-10-06 12:00", "WLDs", "A", "B", True),
+            ("old", "2024-10-06 12:00", "WLDs", "A", "B", True),  # other year
+            ("x", "2025-10-07 12:00", "MSI", "A", "B", True),  # not WLDs
+            ("g1", "2025-10-14 12:00", "WLDs", "A", "B", True),
+        ]
+    )
+    res = run(games, CONFIG)
+    assert res.n_prestart_wlds == 2
+    assert res.predictions["gameid"].tolist() == ["g1"]
+
+
+def test_prestart_count_changes_no_prediction():
+    with_q = make_games(
+        [
+            ("g0", "2025-10-01 12:00", "LEC", "A", "B", True),
+            ("q", "2025-10-05 12:00", "WLDs", "A", "B", True),
+            ("g1", "2025-10-14 12:00", "WLDs", "A", "B", True),
+        ]
+    )
+    as_lec = with_q.assign(league=with_q["league"].replace("WLDs", "LEC"))
+    as_lec.loc[as_lec["gameid"] == "g1", "league"] = "WLDs"
+    a, b = run(with_q, CONFIG), run(as_lec, CONFIG)
+    assert (a.n_prestart_wlds, b.n_prestart_wlds) == (1, 0)
+    assert p_blue(a) == p_blue(b)
 
 
 def test_game_at_cutoff_instant_is_predicted_not_in_starting_ratings():
