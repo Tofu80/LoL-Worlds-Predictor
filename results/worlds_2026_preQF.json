@@ -1,0 +1,81 @@
+{
+  "meta": {
+    "commit": "d751c29a08aca30389d7bc51926b6177342a0dcd",
+    "dirty_worktree": false,
+    "config_sha256": "fe2d60dbbfedd6818f9d84517aa915e81e847b83465ca3ed228126f0a06cbd23",
+    "prediction_cutoff_utc": "2026-11-02T00:00:00",
+    "last_game_used_utc": "2026-11-01 11:42:53",
+    "data_sha256": "3281b29ad7fc7f463b3499e47135f07efdfd57819ae2b7a18223f349110f8122",
+    "csv_snapshot": {
+      "file": "2026_LoL_esports_match_data_from_OraclesElixir.csv",
+      "covers_post_cutoff_rows": true,
+      "sha256": "322a855540b63ca3ec373f2b0e426e91fdccb2a2cd8a0e5a15d608a87ea5ae2e",
+      "modified": "2026-11-10T05:43:03.059941769"
+    },
+    "H": 23.309278175100058,
+    "q": 0.21831797235023043,
+    "n_q": 1736,
+    "sigma": 50,
+    "n_runs": 10000,
+    "seed": 42,
+    "model": {
+      "k_factor": 32,
+      "decay_half_life_days": 182,
+      "side_advantage": "pre_cutoff_rate",
+      "league_offsets": "on",
+      "k_league": 64
+    }
+  },
+  "strengths": {
+    "Gen.G": 2015.7741075111926,
+    "Dplus Kia": 1890.5038124400505,
+    "T1": 1863.7593453547734,
+    "Invictus Gaming": 1864.5277004466632,
+    "Top Esports": 1863.9640635162802,
+    "Bilibili Gaming": 1943.2401455090574,
+    "Karmine Corp": 1682.2303640764937,
+    "LYON": 1723.03880731485
+  },
+  "odds": {
+    "Gen.G": {
+      "semifinal": 0.957,
+      "final": 0.7675,
+      "title": 0.5499
+    },
+    "Bilibili Gaming": {
+      "semifinal": 0.6357,
+      "final": 0.4589,
+      "title": 0.1936
+    },
+    "T1": {
+      "semifinal": 0.8598,
+      "final": 0.2947,
+      "title": 0.0821
+    },
+    "Dplus Kia": {
+      "semifinal": 0.3643,
+      "final": 0.2323,
+      "title": 0.0741
+    },
+    "Invictus Gaming": {
+      "semifinal": 0.5041,
+      "final": 0.1056,
+      "title": 0.0484
+    },
+    "Top Esports": {
+      "semifinal": 0.4959,
+      "final": 0.1167,
+      "title": 0.0482
+    },
+    "LYON": {
+      "semifinal": 0.043,
+      "final": 0.0102,
+      "title": 0.0022
+    },
+    "Karmine Corp": {
+      "semifinal": 0.1402,
+      "final": 0.0141,
+      "title": 0.0015
+    }
+  }
+}
