@@ -7,3 +7,27 @@ random_seed: 42
 # k_scale: scale each game's K by exp(-ln2 * age / half-life), age from cutoff_date
 # none:    plain Elo (weight 1), the no-decay baseline for the half-life sweep
 decay_method: k_scale
+
+# Blue-side advantage H (Elo points added to blue in expected_score, prediction and update).
+# pre_cutoff_rate: r = blue win rate over the window before cutoff_date (all leagues),
+# H = 400*log10(r/(1-r)); fixed for the tournament, never tuned on the backtest.
+side_advantage: pre_cutoff_rate # none | pre_cutoff_rate
+side_advantage_window_days: 365
+
+# League offsets: strength = team rating + league rating of the team's most recent
+# non-international league. Only international games between different league keys move
+# league ratings (K = k_league * decay weight). Quoted because YAML 1.1 reads bare off/on as booleans.
+league_offsets: "on"            # "off" | "on"
+k_league: 64                    # best of the 2023-24 grid (8/16/32/64); at the grid edge, see decisions.md
+k_league_grid: [8, 16, 32, 64]
+# Lineage (docs/decisions.md): code -> rating key; unlisted codes are their own key.
+league_lineage:
+  LTA N: LCS                    # LCS 2026 continues the same key
+  LTA S: CBLOL                  # CBLOL 2026 continues the same key
+# LTA = cross-conference games (NA vs BR): domestic update, never sets membership.
+league_membership_skip: [LTA]
+# A key's first rating = weighted mean (by team count) of these keys' ratings when it first appears.
+league_inherit:
+  LCP: {PCS: 3, LJL: 3, VCS: 4}
+major_leagues: [LCK, LPL, LEC, LCS]
+bootstrap_samples: 2000         # seeded with random_seed

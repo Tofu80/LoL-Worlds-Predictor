@@ -33,7 +33,7 @@ pip install -e ".[dev]"        # once pyproject.toml exists
 pytest                         # run before calling any task done
 ruff check . && ruff format .
 python -m worlds.ingest        # first: writes data/processed/games.parquet
-python -m worlds.backtest      # Worlds 2023–2025 log loss, Brier, calibration vs. 0.5 (odds comparison not wired yet)
+python -m worlds.backtest      # Worlds 2023–2025: current vs +H vs +H+league vs blue-only vs 0.5, k_league grid, bootstrap CI, calibration by matchup class (odds comparison not wired yet)
 python -m worlds.simulate      # current title odds
 ```
 

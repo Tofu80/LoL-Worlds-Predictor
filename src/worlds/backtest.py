@@ -1,4 +1,3 @@
-import math
 import sys
 import warnings
 from dataclasses import dataclass
@@ -16,7 +15,17 @@ BACKTEST_CONFIG_PATH = Path("config/backtest.yaml")
 RATING_UPDATES = ("in_tournament", "frozen")
 EPS = 1e-15
 BIN_EDGES = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-PREDICTION_COLUMNS = ["gameid", "date", "blue", "red", "p_blue", "result"]
+PREDICTION_COLUMNS = [
+    "gameid",
+    "date",
+    "blue",
+    "red",
+    "p_blue",
+    "result",
+    "blue_league",
+    "red_league",
+]
+INGEST_CONFIG_PATH = Path("config/ingest.yaml")
 
 
 @dataclass
@@ -26,7 +35,9 @@ class BacktestResult:
     n_games: int
     calibration: pd.DataFrame
     odds_log_loss: float | None  # None when no betting-odds data
-    predictions: pd.DataFrame  # gameid, date, blue, red, p_blue, result (1 = blue won)
+    predictions: (
+        pd.DataFrame
+    )  # PREDICTION_COLUMNS; result 1 = blue won; league = key at prediction time
     n_prestart_wlds: int = (
         0  # same-year WLDs games before start_date: rated, not scored
     )
@@ -131,14 +142,8 @@ def backtest_worlds(
         )
 
     k, initial = config["k_factor"], float(config["initial_rating"])
-    ratings = elo.compute_ratings(
-        games,
-        cutoff_date,
-        k,
-        initial,
-        config["decay_half_life_days"],
-        config["decay_method"],
-    )
+    state = elo.replay(games, cutoff_date, config)
+    ratings = state.team
     table = _blue_red(games)
     scored = (
         (table["league"] == "WLDs")
@@ -168,25 +173,21 @@ def backtest_worlds(
     for _, group in window.sort_values(["date", "gameid"]).groupby("date", sort=True):
         for g in group.itertuples(index=False):
             if _is_scored(g, start, year):
-                rb = ratings.get(g.blue, initial)
-                rr = ratings.get(g.red, initial)
                 rows.append(
                     (
                         g.gameid,
                         g.date,
                         g.blue,
                         g.red,
-                        elo.expected_score(rb, rr),
+                        state.p_blue(g.blue, g.red),
                         g.result,
+                        state.member.get(g.blue),
+                        state.member.get(g.red),
                     )
                 )
         if mode == "in_tournament":
             for g in group.itertuples(index=False):
-                rb = ratings.setdefault(g.blue, initial)
-                rr = ratings.setdefault(g.red, initial)
-                ratings[g.blue], ratings[g.red] = elo.update_ratings(
-                    rb, rr, float(g.result), k
-                )
+                state.update(g.blue, g.red, g.league, bool(g.result == 1), k)
     result = score(pd.DataFrame(rows, columns=PREDICTION_COLUMNS))
     result.n_prestart_wlds = int(
         (
@@ -202,8 +203,56 @@ def _is_scored(g, start: pd.Timestamp, year: int) -> bool:
     return g.league == "WLDs" and g.date >= start and g.date.year == year
 
 
-def _fmt(label: str, year: object, r: BacktestResult) -> str:
-    return f"{label:<14}{year!s:<8}{r.n_games:>5}{r.log_loss:>10.4f}{r.brier:>9.4f}"
+def per_game_loss(p, y) -> np.ndarray:
+    p = np.clip(np.asarray(p, dtype=float), EPS, 1 - EPS)
+    y = np.asarray(y, dtype=float)
+    return -(y * np.log(p) + (1 - y) * np.log(1 - p))
+
+
+def bootstrap_diff(
+    loss_a, loss_b, n: int, rng: np.random.Generator
+) -> tuple[float, float, float]:
+    """Paired bootstrap of mean(loss_a - loss_b): resample games, 95% percentile CI.
+
+    Returns (mean difference, low, high). Negative means a is better.
+    """
+    d = np.asarray(loss_a, dtype=float) - np.asarray(loss_b, dtype=float)
+    means = d[rng.integers(0, len(d), size=(n, len(d)))].mean(axis=1)
+    lo, hi = np.percentile(means, [2.5, 97.5])
+    return float(d.mean()), float(lo), float(hi)
+
+
+def matchup_class(blue_league, red_league, major: list[str]) -> str:
+    """same-league / major-major / major-minor / minor-minor by league key at prediction time."""
+    if blue_league is None or red_league is None:
+        return "unknown"
+    if blue_league == red_league:
+        return "same-league"
+    n_major = (blue_league in major) + (red_league in major)
+    return ("minor-minor", "major-minor", "major-major")[n_major]
+
+
+def run_years(games: pd.DataFrame, config: dict) -> dict[int, BacktestResult]:
+    return {
+        year: backtest_worlds(year, games, config, pd.Timestamp(t["start_date"]))
+        for year, t in config["tournaments"].items()
+    }
+
+
+def _pool(results: dict[int, BacktestResult], years=None) -> pd.DataFrame:
+    return pd.concat(
+        [r.predictions for y, r in results.items() if years is None or y in years]
+    )
+
+
+def _row(label: str, results: dict[int, BacktestResult] | None, pooled: BacktestResult):
+    per_year = "".join(
+        f"{results[y].log_loss:>9.4f}" if results else f"{'':>9}" for y in YEARS
+    )
+    return f"{label:<14}{per_year}{pooled.log_loss:>9.4f}{pooled.brier:>9.4f}"
+
+
+YEARS = (2023, 2024, 2025)
 
 
 def main() -> None:
@@ -213,33 +262,145 @@ def main() -> None:
     config = {
         **yaml.safe_load(ELO_CONFIG_PATH.read_text()),
         **yaml.safe_load(BACKTEST_CONFIG_PATH.read_text()),
+        "international_leagues": yaml.safe_load(INGEST_CONFIG_PATH.read_text())[
+            "international_leagues"
+        ],
     }
-    print(f"{'mode':<14}{'year':<8}{'n':>5}{'log loss':>10}{'Brier':>9}")
-    pooled_by_mode = {}
-    prestart = {}
-    for mode in RATING_UPDATES:
-        cfg = {**config, "rating_updates": mode}
-        parts = []
-        for year, t in config["tournaments"].items():
-            r = backtest_worlds(year, games, cfg, pd.Timestamp(t["start_date"]))
-            parts.append(r.predictions)
-            prestart[year] = r.n_prestart_wlds  # same in both modes
-            print(_fmt(mode, year, r))
-        pooled_by_mode[mode] = score(pd.concat(parts))
-        print(_fmt(mode, "pooled", pooled_by_mode[mode]))
-    print(f"{'0.5 baseline':<14}{'':<8}{'':>5}{math.log(2):>10.4f}{0.25:>9.4f}")
+    off = {**config, "side_advantage": "none", "league_offsets": "off"}
+    plus_h = {**off, "side_advantage": "pre_cutoff_rate"}
+
+    # k_league grid: 2023-24 only (merge bar C), with H on.
+    grid = {}
+    for k_league in config["k_league_grid"]:
+        res = run_years(games, {**plus_h, "league_offsets": "on", "k_league": k_league})
+        grid[k_league] = log_loss(
+            _pool(res, (2023, 2024))["p_blue"], _pool(res, (2023, 2024))["result"]
+        )
+    best_k = min(grid, key=grid.get)
+    print("k_league grid, pooled 2023-24 log loss (+H +league):")
+    for k_league, ll in grid.items():
+        print(
+            f"  k_league={k_league:<4}{ll:.4f}"
+            + ("  <- chosen" if k_league == best_k else "")
+        )
+
+    if best_k != config["k_league"]:
+        warnings.warn(
+            f"grid picks k_league={best_k} but config/elo.yaml has {config['k_league']}",
+            stacklevel=2,
+        )
+    full = {**plus_h, "league_offsets": "on", "k_league": best_k}
+    runs = {
+        "current": run_years(games, off),
+        "+H": run_years(games, plus_h),
+        "+H+league": run_years(games, full),
+    }
+    pooled = {name: score(_pool(r)) for name, r in runs.items()}
+
+    base = _pool(runs["current"])
+    cutoffs = {
+        y: pd.Timestamp(t["start_date"]) for y, t in config["tournaments"].items()
+    }
+    blue_p = np.array(
+        [
+            elo.expected_score(
+                0.0,
+                0.0,
+                elo.blue_advantage(
+                    games, cutoffs[d.year], config["side_advantage_window_days"]
+                ),
+            )
+            for d in base["date"]
+        ]
+    )
+    # a game's year is its Worlds year (WLDs games are scored in their own calendar year)
+    blue_only_by_year = {
+        y: score(
+            runs["current"][y].predictions.assign(
+                p_blue=blue_p[(base["date"].dt.year == y).to_numpy()]
+            )
+        )
+        for y in YEARS
+    }
+    blue_only = score(base.assign(p_blue=blue_p))
+    half = score(base.assign(p_blue=0.5))
+
+    print(
+        f"\n{'log loss':<14}"
+        + "".join(f"{y:>9}" for y in YEARS)
+        + f"{'pooled':>9}{'Brier':>9}"
+    )
+    for name, by_year in runs.items():
+        print(_row(name, by_year, pooled[name]))
+    print(_row("blue-only", blue_only_by_year, blue_only))
+    print(_row("0.5", None, half))
+
+    rng = np.random.default_rng(config["random_seed"])
+    cur = per_game_loss(base["p_blue"], base["result"])
+    print(
+        "\nPaired bootstrap of pooled log loss difference vs current (negative = better):"
+    )
+    for name in ("+H", "+H+league"):
+        pr = _pool(runs[name])
+        if not (pr["gameid"].to_numpy() == base["gameid"].to_numpy()).all():
+            raise ValueError(f"{name} and current score different games")
+        m, lo, hi = bootstrap_diff(
+            per_game_loss(pr["p_blue"], pr["result"]),
+            cur,
+            config["bootstrap_samples"],
+            rng,
+        )
+        print(f"  {name:<10}{m:+.4f}  95% CI [{lo:+.4f}, {hi:+.4f}]")
+
+    cur_ll = pooled["current"].log_loss
+    y25_cur = runs["current"][2025].log_loss
+    ok = (
+        pooled["+H+league"].log_loss < cur_ll
+        and runs["+H+league"][2025].log_loss <= y25_cur
+    )
+    print(
+        f"\nMerge bar (+H+league, k_league={best_k}): pooled {pooled['+H+league'].log_loss:.4f} < "
+        f"{cur_ll:.4f} and 2025 {runs['+H+league'][2025].log_loss:.4f} <= {y25_cur:.4f}: "
+        + ("PASS" if ok else "FAIL")
+    )
+
+    # Calibration by matchup class; the class comes from the +H+league run's league keys.
+    lg = _pool(runs["+H+league"])
+    cls = {
+        g: matchup_class(b, r, config["major_leagues"])
+        for g, b, r in zip(lg["gameid"], lg["blue_league"], lg["red_league"])
+    }
+    for name in ("current", "+H+league"):
+        pr = _pool(runs[name]).assign(cls=lambda d: d["gameid"].map(cls))
+        print(f"\nFavourite's view by matchup class ({name}):")
+        print(
+            f"  {'class':<13}{'n':>5}{'mean_pred':>11}{'observed':>10}{'log loss':>10}"
+        )
+        for c in (
+            "same-league",
+            "major-major",
+            "major-minor",
+            "minor-minor",
+            "unknown",
+        ):
+            sub = pr[pr["cls"] == c]
+            if sub.empty:
+                continue
+            t = calibration_table(sub["p_blue"], sub["result"])
+            n = t["n"].sum()
+            pred = np.nansum(t["n"] * t["mean_pred"]) / n
+            obs = np.nansum(t["n"] * t["observed"]) / n
+            print(
+                f"  {c:<13}{n:>5}{pred:>11.3f}{obs:>10.3f}{log_loss(sub['p_blue'], sub['result']):>10.4f}"
+            )
+
+    prestart = {y: r.n_prestart_wlds for y, r in runs["current"].items()}
     print()
     for year, n in prestart.items():
-        start = config["tournaments"][year]["start_date"]
         print(
-            f"{year}: {n} WLDs games before start_date {start} "
+            f"{year}: {n} WLDs games before start_date {config['tournaments'][year]['start_date']} "
             "(qualifiers, rating data only, not scored)"
         )
-    chosen = config["rating_updates"]
-    print(f"\nPooled calibration ({chosen}), favourite's view:")
-    print(
-        pooled_by_mode[chosen].calibration.to_string(index=False, float_format="%.3f")
-    )
 
 
 if __name__ == "__main__":
