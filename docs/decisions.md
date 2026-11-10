@@ -21,6 +21,10 @@ the new pieces (RoFS side model, sigma = 50) were chosen without looking at any 
 the cutoff was used, and this PR loads, prints and compares no knockout result. A later PR compares the prediction with
 what happened. Any re-run (new CSV, config or code) is a new version and does not replace this one; the output records
 the commit, a config hash, the CSV sha256, H, q, sigma and seed. Phu tags the merged commit `pred-2026-preQF`.
+**Known limit (open, leakage review):** the RoFS design (holder rule, reusing q for game 1, the league list and the 4 h gap) was
+decided 2026-11-09, after the QFs had started and were public, and the format sources were read 2026-11-10. The code cannot prove
+those choices were made blind to knockout side selections; it can only state that they were not tuned on any 2026 knockout result.
+A coin-flip-for-game-1 variant is a possible sensitivity check.
 **Alternatives considered:** Re-fitting on 2026 data (rejected: breaks "choices fixed by the backtest only").
 **Evidence:** `tests/test_simulate.py::test_post_cutoff_results_change_nothing` (flipping knockout and other post-cutoff
 results leaves the output identical), `test_game_exactly_at_cutoff_is_not_used`.

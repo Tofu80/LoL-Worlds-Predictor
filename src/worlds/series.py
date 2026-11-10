@@ -2,6 +2,7 @@ from functools import cache
 
 import pandas as pd
 
+from worlds.backtest import _blue_red
 from worlds.elo import expected_score
 
 
@@ -67,16 +68,8 @@ def rofs_q(
         & (games["date"].dt.year == cutoff_date.year)
         & (games["league"].isin(leagues))
     ]
-    blue = g[g["side"] == "Blue"].set_index("gameid")
-    red = g[g["side"] == "Red"].set_index("gameid")
-    t = pd.DataFrame(
-        {
-            "date": blue["date"],
-            "blue": blue["teamname"],
-            "red": red["teamname"],
-            "blue_won": blue["result"] == 1,
-        }
-    ).reset_index()
+    t = _blue_red(g)  # raises unless every game has one Blue and one Red row
+    t["blue_won"] = t["result"] == 1
     t["pair"] = [frozenset(x) for x in zip(t["blue"], t["red"])]
     t["loser"] = t["red"].where(t["blue_won"], t["blue"])
     t = t.sort_values(["date", "gameid"])

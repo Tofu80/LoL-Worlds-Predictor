@@ -189,3 +189,10 @@ def test_rofs_q_ignores_games_on_or_after_cutoff_and_other_years():
 def test_rofs_q_without_continuations_raises():
     with pytest.raises(ValueError):
         rofs_q(_rofs_games(BASE_ROWS[:1]), CUT, LEAGUES, 4)
+
+
+def test_rofs_q_missing_red_row_raises():
+    games = _rofs_games(BASE_ROWS)
+    games = games[~((games["gameid"] == "a2") & (games["side"] == "Red"))]
+    with pytest.raises(ValueError):
+        rofs_q(games, CUT, LEAGUES, 4)

@@ -1,4 +1,5 @@
 import copy
+import functools
 import random
 
 import numpy as np
@@ -40,6 +41,7 @@ def _rows_to_games(rows):
     return pd.DataFrame(out)
 
 
+@functools.lru_cache(maxsize=1)
 def _swiss_pairs():
     """(winner, loser) pairs giving every team its final Swiss record."""
     res = {t: tuple(r) for t, r in CFG["swiss_results"].items()}
@@ -52,7 +54,8 @@ def _swiss_pairs():
     rnd = random.Random(0)
     while True:
         rnd.shuffle(losses)
-        if all(w != l for w, l in zip(wins, losses)):
+        pairs = [frozenset(x) for x in zip(wins, losses)]
+        if all(w != l for w, l in zip(wins, losses)) and len(set(pairs)) == len(pairs):
             return list(zip(wins, losses))
 
 
@@ -168,3 +171,90 @@ def test_run_simulation_sigma_zero_is_deterministic_in_strengths():
     b = run_simulation(strengths, 23.0, 0.2, CFG, 200, np.random.default_rng(1), 0.0)
     pd.testing.assert_frame_equal(a, b)
     assert a["title"].sum() == pytest.approx(1.0)
+
+
+# ---- leakage-review follow-ups ----
+
+
+def test_frozen_rating_updates_keep_ratings_at_start_date():
+    from worlds import elo
+    from worlds.simulate import rating_state
+
+    games = build_games()
+    frozen = rating_state(games, {**CFG, "rating_updates": "frozen"})
+    live = rating_state(games, {**CFG, "rating_updates": "in_tournament"})
+    start = pd.Timestamp(CFG["start_date"])
+    assert frozen.team == elo.replay(games, start, CFG).team
+    assert frozen.team != live.team
+
+
+def test_unknown_rating_updates_raises():
+    from worlds.simulate import rating_state
+
+    with pytest.raises(ValueError, match="rating_updates"):
+        rating_state(build_games(), {**CFG, "rating_updates": "bogus"})
+
+
+def test_data_hash_covers_pre_cutoff_rows_only():
+    from worlds.simulate import games_sha256
+
+    base = games_sha256(build_games(), CFG)
+    assert games_sha256(build_games(knockout_rows(False)), CFG) == base
+    assert games_sha256(build_games(knockout_rows(True)), CFG) == base
+    flipped = build_games()
+    flipped.loc[flipped["gameid"] == "s0", "result"] = (
+        1 - flipped.loc[flipped["gameid"] == "s0", "result"]
+    )
+    assert games_sha256(flipped, CFG) != base
+
+
+def test_no_wlds_games_raises_clear_error():
+    games = build_games()
+    games = games[games["league"] != "WLDs"]
+    with pytest.raises(ValueError, match="no Swiss games"):
+        validate_pre_cutoff(games, CFG)
+
+
+def test_non_swiss_game_at_last_swiss_timestamp_raises():
+    last = build_games()
+    last_date = last[last["gameid"].str.startswith("s")]["date"].max()
+    extra = [("tie", last_date, "LCK", TEAMS[0], TEAMS[4], True)]
+    with pytest.raises(ValueError, match="last Swiss game"):
+        validate_pre_cutoff(build_games(extra), CFG)
+
+
+def test_swiss_rematch_raises():
+    pairs = _swiss_pairs()
+    w, l = pairs[0]
+    extra = [("rem", "2026-10-31 20:00", "WLDs", w, l, True)]
+    with pytest.raises(ValueError, match="twice"):
+        validate_pre_cutoff(build_games(extra), CFG)
+
+
+def test_team_count_must_match_swiss_total():
+    cfg = {**CFG, "teams": CFG["teams"][:-1]}
+    with pytest.raises(ValueError, match="total_teams"):
+        validate_pre_cutoff(build_games(), cfg)
+
+
+def test_write_outputs_refuses_to_overwrite(tmp_path, monkeypatch):
+    from worlds import simulate
+
+    raw = tmp_path / "raw.csv"
+    raw.write_text("x")
+    monkeypatch.setattr(simulate, "RAW_2026", raw)
+    monkeypatch.setattr(simulate, "OUT_DIRS", [tmp_path / "out"])
+    games = build_games()
+    result = predict(games, CFG, 50, np.random.default_rng(1))
+    paths = simulate.write_outputs(result, CFG, games, 42)
+    assert all(p.exists() for p in paths)
+    meta = __import__("json").loads(paths[0].read_text())["meta"]
+    assert "data_sha256" in meta and meta["csv_snapshot"]["covers_post_cutoff_rows"]
+    with pytest.raises(FileExistsError):
+        simulate.write_outputs(result, CFG, games, 42)
+
+
+def test_predict_reports_games_per_q_league():
+    out = predict(build_games(), CFG, 20, np.random.default_rng(1))
+    assert out["q_league_games"]["LCK"] > 0
+    assert out["q_league_games"]["CBLOL"] == 0

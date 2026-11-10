@@ -10,7 +10,7 @@ import yaml
 from numpy.random import Generator
 
 from worlds import elo
-from worlds.backtest import _blue_red
+from worlds.backtest import RATING_UPDATES, _blue_red
 from worlds.bracket import STAGES, simulate_bracket
 from worlds.series import rofs_q
 
@@ -33,6 +33,9 @@ def load_config() -> dict:
         **yaml.safe_load(Path("config/elo.yaml").read_text()),
         **yaml.safe_load(Path("config/worlds_2026.yaml").read_text()),
     }
+    cfg["rating_updates"] = yaml.safe_load(Path("config/backtest.yaml").read_text())[
+        "rating_updates"
+    ]
     cfg["international_leagues"] = yaml.safe_load(
         Path("config/ingest.yaml").read_text()
     )["international_leagues"]
@@ -53,6 +56,8 @@ def _swiss_records(swiss: pd.DataFrame, gap_hours: float) -> dict[str, list[int]
         pair = frozenset((g.blue, g.red))
         s = last.get(pair)
         if s is None or (g.date - s["end"]) >= pd.Timedelta(hours=gap_hours):
+            if s is not None:
+                raise ValueError(f"{sorted(pair)} meet twice in the Swiss stage")
             s = {"end": g.date, "wins": {g.blue: 0, g.red: 0}}
             series.append(s)
             last[pair] = s
@@ -83,9 +88,15 @@ def validate_pre_cutoff(games: pd.DataFrame, cfg: dict) -> dict:
         pd.Timestamp(cfg["start_date"]),
         pd.Timestamp(cfg["swiss_start"]),
     )
+    if len(cfg["teams"]) != cfg["swiss"]["total_teams"]:
+        raise ValueError(
+            f"{len(cfg['teams'])} teams listed but swiss.total_teams is {cfg['swiss']['total_teams']}"
+        )
     games = _before_cutoff(games, cfg)
     wlds = games[(games["league"] == "WLDs") & (games["date"].dt.year == cutoff.year)]
-    table = _blue_red(wlds) if len(wlds) else pd.DataFrame(columns=["date"])
+    if wlds.empty:
+        raise ValueError("no Swiss games before the cutoff (no 2026 WLDs games)")
+    table = _blue_red(wlds)
     n_qualifier = int((table["date"] < start).sum())
     swiss_teams = set(cfg["teams"])
     in_window = table[table["date"] >= start]
@@ -117,7 +128,11 @@ def validate_pre_cutoff(games: pd.DataFrame, cfg: dict) -> dict:
         )
 
     last_swiss = swiss["date"].max()
-    gap = games[(games["date"] > last_swiss) & (games["date"] < cutoff)]
+    gap = games[
+        (games["date"] >= last_swiss)
+        & (games["date"] < cutoff)
+        & ~games["gameid"].isin(swiss["gameid"])
+    ]
     if len(gap):
         raise ValueError(
             f"{gap['gameid'].nunique()} game(s) between the last Swiss game {last_swiss} "
@@ -135,9 +150,16 @@ def validate_pre_cutoff(games: pd.DataFrame, cfg: dict) -> dict:
 def rating_state(games: pd.DataFrame, cfg: dict) -> elo.EloState:
     """Ratings as the backtest builds them: replay games before start_date (H fixed from
     them), then add every game in [start_date, prediction_cutoff) at full K."""
+    mode = cfg.get("rating_updates", "in_tournament")
+    if mode not in RATING_UPDATES:
+        raise ValueError(
+            f"rating_updates must be one of {RATING_UPDATES}, got {mode!r}"
+        )
     start = pd.Timestamp(cfg["start_date"])
     games = _before_cutoff(games, cfg)
     state = elo.replay(games, start, cfg)
+    if mode == "frozen":
+        return state
     window = games[games["date"] >= start]
     table = _blue_red(window).sort_values(["date", "gameid"])
     for g in table.itertuples(index=False):
@@ -172,6 +194,7 @@ def run_simulation(
 def predict(games: pd.DataFrame, cfg: dict, n_runs: int, rng: Generator) -> dict:
     """The pre-quarterfinal prediction from games before prediction_cutoff only."""
     games = _before_cutoff(games, cfg)  # nothing later is read past this line
+    cutoff_ts = pd.Timestamp(cfg["prediction_cutoff"])
     summary = validate_pre_cutoff(games, cfg)
     state = rating_state(games, cfg)
     q, n_q = rofs_q(
@@ -180,6 +203,10 @@ def predict(games: pd.DataFrame, cfg: dict, n_runs: int, rng: Generator) -> dict
         cfg["rofs_q_leagues"],
         cfg["rofs_series_gap_hours"],
     )
+    g26 = games[(games["date"].dt.year == cutoff_ts.year) & (games["side"] == "Blue")]
+    q_league_games = {
+        lg: int((g26["league"] == lg).sum()) for lg in cfg["rofs_q_leagues"]
+    }
     strengths = {t: state.strength(t) for t in cfg["swiss_results"]}
     table = run_simulation(strengths, state.h, q, cfg, n_runs, rng, cfg["rating_noise"])
     return {
@@ -188,6 +215,7 @@ def predict(games: pd.DataFrame, cfg: dict, n_runs: int, rng: Generator) -> dict
         "h": state.h,
         "q": q,
         "n_q": n_q,
+        "q_league_games": q_league_games,  # a listed league with 0 may be a wrong code
         "sigma": cfg["rating_noise"],
         "n_runs": n_runs,
         "validation": summary,
@@ -208,6 +236,15 @@ def _git(*args: str) -> str:
     ).stdout.strip()
 
 
+def games_sha256(games: pd.DataFrame, cfg: dict) -> str:
+    """Hash of the pre-cutoff team rows the model can see (canonical order), so it does
+    not change with anything dated on or after the cutoff."""
+    g = _before_cutoff(games, cfg)
+    cols = ["gameid", "date", "league", "teamname", "side", "result"]
+    g = g[cols].sort_values(["gameid", "side"])
+    return hashlib.sha256(g.to_csv(index=False).encode()).hexdigest()
+
+
 def write_outputs(
     result: dict, cfg: dict, games: pd.DataFrame, seed: int
 ) -> list[Path]:
@@ -222,8 +259,10 @@ def write_outputs(
         "config_sha256": config_hash,
         "prediction_cutoff_utc": cutoff.isoformat(),
         "last_game_used_utc": str(_before_cutoff(games, cfg)["date"].max()),
+        "data_sha256": games_sha256(games, cfg),
         "csv_snapshot": {
             "file": RAW_2026.name,
+            "covers_post_cutoff_rows": True,  # whole file; informational only
             "sha256": _sha256(RAW_2026),
             "modified": pd.Timestamp(RAW_2026.stat().st_mtime, unit="s").isoformat(),
         },
@@ -267,6 +306,12 @@ def write_outputs(
         "",
     ]
     paths = []
+    existing = [d / f"{OUT_NAME}.{e}" for d in OUT_DIRS for e in ("json", "md")]
+    existing = [p for p in existing if p.exists()]
+    if existing:
+        raise FileExistsError(
+            f"{existing}: a re-run is a new version; move or delete the old files first"
+        )
     for d in OUT_DIRS:
         d.mkdir(parents=True, exist_ok=True)
         (d / f"{OUT_NAME}.json").write_text(json.dumps(doc, indent=2, default=str))
@@ -291,6 +336,7 @@ def main() -> None:
     print(
         f"H = {result['h']:.1f}, q = {result['q']:.3f} (n = {result['n_q']}), sigma = {result['sigma']}"
     )
+    print(f"2026 games per q league (0 = check the code): {result['q_league_games']}")
     print(result["table"].round(4).to_string())
     for p in write_outputs(result, cfg, games, cfg["random_seed"]):
         print(f"Wrote {p}")
