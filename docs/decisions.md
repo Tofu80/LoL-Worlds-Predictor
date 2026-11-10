@@ -12,6 +12,42 @@ Each entry: what was decided, what else was considered, the evidence, and when t
 **Revisit if:**
 -->
 
+## 2026-10-26 — Blue-side bonus H and league offsets (merge bar C: PASS)
+**Decision (Phu, 2026-10-26):** (1) Blue gets +H Elo in `expected_score`, in predictions and updates.
+`H = 400*log10(r/(1-r))`, r = blue win rate over the 365 days before `cutoff_date` (all leagues): 21.5 / 23.1 /
+23.2 for 2023 / 2024 / 2025. Fixed per tournament, not tuned on the backtest. (2) `strength = team + league[key]`.
+A team's key is the league of its most recent non-international game before the game (`date < t`). Only
+international games between two different keys move league ratings (`k_league` x decay weight, zero-sum);
+domestic games move teams only. (3) Merge bar C: `k_league` from {8, 16, 32, 64} on 2023-24 only; merge if pooled
+log loss < 0.7045 and 2025 does not get worse.
+**Lineage (approved in plan mode):** `LTA N` -> `LCS` key, `LTA S` -> `CBLOL` key; the `LTA` label (40 NA-vs-BR
+cross-conference games) updates teams only and never sets membership; `LCP` starts at the team-count-weighted mean
+of PCS 3 / LJL 3 / VCS 4 (LCO teams and new entrants left out). Major set for the split: LCK, LPL, LEC, LCS.
+**Alternatives considered:** Keeping league membership at the latest game of any kind (rejected: includes
+international games); LTA S as a CBLOL/LLA mix; a league-mean regress (decay Option B, parked).
+**Evidence:** `python -m worlds.backtest`, log loss (n = 110 / 106 / 84 / 300):
+
+| variant | 2023 | 2024 | 2025 | pooled | Brier |
+|---|---|---|---|---|---|
+| current (PR #11) | 0.6998 | 0.7299 | 0.6788 | 0.7045 | 0.2549 |
+| +H | 0.6925 | 0.7212 | 0.6823 | 0.6998 | 0.2528 |
+| +H +league (k_league 64) | 0.6470 | 0.6974 | 0.6348 | 0.6614 | 0.2334 |
+| blue-only (pre-cutoff r) | 0.6872 | 0.6841 | 0.6954 | 0.6884 | 0.2476 |
+| 0.5 | | | | 0.6931 | 0.2500 |
+
+k_league grid (pooled 2023-24, +H on): 8 -> 0.6942, 16 -> 0.6853, 32 -> 0.6748, 64 -> 0.6717. Paired bootstrap
+(2000 resamples of games) of pooled log loss vs current: +H -0.0047, 95% CI [-0.0119, +0.0023]; +H +league -0.0432,
+95% CI [-0.0804, -0.0053]. Merge bar: 0.6614 < 0.7045 and 2025 0.6348 <= 0.6788, PASS.
+Favourite's view by matchup class (current -> +H +league): major-minor (n=70) mean predicted 0.639 / observed 0.400
+-> 0.658 / 0.614; major-major (n=141) 0.593 / 0.539 -> 0.679 / 0.617; same-league (n=58) 0.599 / 0.517 -> 0.612 / 0.552;
+minor-minor (n=31) 0.580 / 0.677 -> 0.635 / 0.742. Classes use the league keys at prediction time of the +H +league run.
+**Caveats:** (a) The best `k_league` is the top of the grid (64), so the optimum may be higher; the grid was not extended
+(Phu's grid). (b) +H alone is not significant (CI spans 0), the gain is the league term. (c) Teams that play two
+domestic leagues at once (Deep Cross Gaming and Ground Zero in LCP+PCS, QT DIG in LCP+LJL, Disguised/Cupid in
+LCS+NACL) flip keys with their latest game. (d) League ratings are not decayed between international events.
+(e) Calibration is still over-confident for major-major and minor-minor favourites (n small).
+**Revisit if:** A wider grid moves `k_league`; league ratings drift across a long gap without internationals.
+
 ## 2026-10-24 — First backtest baseline (Elo is not yet better than a coin flip)
 **Decision:** `backtest_worlds` scores every WLDs game on or after `start_date` (play-in start) in
 the same calendar year, per game (not per series), from p(blue wins). Games sharing a timestamp are all

@@ -9,10 +9,13 @@ import pytest
 from worlds.backtest import (
     BacktestResult,
     backtest_worlds,
+    bootstrap_diff,
     brier,
     calibration_table,
     log_loss,
+    matchup_class,
 )
+from worlds.elo import expected_score, replay
 
 CUTOFF = pd.Timestamp("2025-10-14")
 CONFIG = {
@@ -270,3 +273,73 @@ def test_game_at_cutoff_instant_is_predicted_not_in_starting_ratings():
     )
     p = p_blue(run(games, CONFIG))
     assert p == pytest.approx([1 / (1 + 10 ** (-32 / 400))])
+
+
+# ---- side advantage and league offsets in the backtest ----
+
+
+def _h_fixture():
+    """A prior year with 3 blue wins in 4 (H > 0), then g0 and two WLDs games."""
+    rows = [
+        (f"p{i}", f"2025-06-0{i + 1} 12:00", "LEC", "X", "Y", i < 3) for i in range(4)
+    ]
+    games, cfg = fixture()
+    return pd.concat([make_games(rows), games], ignore_index=True), cfg
+
+
+def test_defaults_without_new_keys_equal_explicit_off():
+    games, cfg = fixture()
+    explicit = {**cfg, "side_advantage": "none", "league_offsets": "off"}
+    assert p_blue(run(games, cfg)) == p_blue(run(games, explicit))
+
+
+def test_side_advantage_enters_prediction_and_update():
+    games, cfg = _h_fixture()
+    cfg = {**cfg, "side_advantage": "pre_cutoff_rate"}
+    h = 400 * math.log10(4)  # prior window: p0-p3 plus g0, 4 blue wins of 5
+    state = replay(games, CUTOFF, cfg)
+    assert state.h == pytest.approx(h)
+    res = run(games, cfg)
+    first = res.predictions.sort_values("date")["p_blue"].iloc[0]
+    assert first == pytest.approx(expected_score(state.team["A"], state.team["B"], h))
+    # the update credits the win less than a no-H update would
+    plain = replay(games, CUTOFF, {**cfg, "side_advantage": "none"})
+    assert state.team["A"] < plain.team["A"]
+
+
+def test_predictions_carry_league_keys_and_ignore_the_current_game():
+    games, cfg = fixture()
+    cfg = {
+        **cfg,
+        "league_offsets": "on",
+        "k_league": 16,
+        "international_leagues": ["WLDs"],
+    }
+    res = run(games, cfg)
+    assert {"blue_league", "red_league"} <= set(res.predictions.columns)
+    # g0 (LEC, A v B) is before the cutoff: both teams are LEC members
+    assert set(res.predictions["blue_league"]) == {"LEC"}
+
+
+def test_matchup_class():
+    major = ["LCK", "LPL", "LEC", "LCS"]
+    assert matchup_class("LCK", "LCK", major) == "same-league"
+    assert matchup_class("LCK", "LPL", major) == "major-major"
+    assert matchup_class("LPL", "PCS", major) == "major-minor"
+    assert matchup_class("PCS", "PCS", major) == "same-league"
+    assert matchup_class("PCS", "VCS", major) == "minor-minor"
+    assert matchup_class(None, "LCK", major) == "unknown"
+
+
+def test_bootstrap_diff_reproducible_and_brackets_the_mean():
+    a = np.array([0.9, 0.5, 0.7, 0.4, 0.8, 0.6])
+    b = a + 0.1
+    r1 = bootstrap_diff(b, a, 500, np.random.default_rng(1))
+    r2 = bootstrap_diff(b, a, 500, np.random.default_rng(1))
+    assert r1 == r2
+    mean, lo, hi = r1
+    assert mean == pytest.approx(0.1)
+    assert lo == pytest.approx(0.1) and hi == pytest.approx(0.1)
+    c = np.array([0.0, 1.0, 0.0, 1.0])
+    m, lo, hi = bootstrap_diff(c, np.zeros(4), 500, np.random.default_rng(2))
+    assert lo < m < hi
