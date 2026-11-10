@@ -1,11 +1,15 @@
 # Worlds 2026 pre-quarterfinal prediction
 
 Retroactive: data strictly before the cutoff only; no knockout result used.
+Pre-cutoff rows come from the CSV snapshot below (taken after the cutoff), so later
+corrections to them by Oracle's Elixir are possible.
 
-- commit: `d751c29a08aca30389d7bc51926b6177342a0dcd`
-- dirty_worktree: `False`
+- commit: `0bf2aa9a86b1489257c5eedc5c25250d913ce2d8`
+- dirty_worktree: `True`
 - config_sha256: `fe2d60dbbfedd6818f9d84517aa915e81e847b83465ca3ed228126f0a06cbd23`
 - prediction_cutoff_utc: `2026-11-02T00:00:00`
+- last_swiss_game_utc: `2026-10-31 23:05:06`
+- n_gap_games_ignored: `9`
 - last_game_used_utc: `2026-11-01 11:42:53`
 - data_sha256: `3281b29ad7fc7f463b3499e47135f07efdfd57819ae2b7a18223f349110f8122`
 - csv_snapshot: `{'file': '2026_LoL_esports_match_data_from_OraclesElixir.csv', 'covers_post_cutoff_rows': True, 'sha256': '322a855540b63ca3ec373f2b0e426e91fdccb2a2cd8a0e5a15d608a87ea5ae2e', 'modified': '2026-11-10T05:43:03.059941769'}`
