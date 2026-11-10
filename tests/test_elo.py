@@ -391,3 +391,10 @@ def test_lineage_and_skip_and_inherit():
     want = (3 * s.league["PCS"] + 3 * s.league["LJL"] + 4 * s.league["VCS"]) / 10
     assert s.league["LCP"] == pytest.approx(want)
     assert s.member["Q"] == "LCP"
+
+
+def test_game_without_one_blue_and_one_red_row_raises():
+    games = _games([("g1", "2024-01-10", "A", "B", True)])
+    games.loc[games["teamname"] == "B", "side"] = "Blue"
+    with pytest.raises(ValueError, match="Blue and one Red"):
+        compute_ratings(games, CUTOFF, K, INIT, HL, "none")

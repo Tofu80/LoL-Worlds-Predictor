@@ -284,6 +284,11 @@ def main() -> None:
             + ("  <- chosen" if k_league == best_k else "")
         )
 
+    if best_k != config["k_league"]:
+        warnings.warn(
+            f"grid picks k_league={best_k} but config/elo.yaml has {config['k_league']}",
+            stacklevel=2,
+        )
     full = {**plus_h, "league_offsets": "on", "k_league": best_k}
     runs = {
         "current": run_years(games, off),
@@ -337,6 +342,8 @@ def main() -> None:
     )
     for name in ("+H", "+H+league"):
         pr = _pool(runs[name])
+        if not (pr["gameid"].to_numpy() == base["gameid"].to_numpy()).all():
+            raise ValueError(f"{name} and current score different games")
         m, lo, hi = bootstrap_diff(
             per_game_loss(pr["p_blue"], pr["result"]),
             cur,

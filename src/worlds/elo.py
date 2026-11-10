@@ -124,6 +124,12 @@ def _check_games(games: pd.DataFrame) -> None:
         raise ValueError(
             f"gameids without exactly two rows and one win: {list(bad[:10])}"
         )
+    sides = games.groupby("gameid")["side"].agg(lambda x: sorted(x))
+    bad_sides = sides.index[sides.map(lambda x: x != ["Blue", "Red"])]
+    if len(bad_sides):
+        raise ValueError(
+            f"gameids without one Blue and one Red row: {list(bad_sides[:10])}"
+        )
 
 
 def replay(games: pd.DataFrame, cutoff_date: pd.Timestamp, config: dict) -> EloState:
