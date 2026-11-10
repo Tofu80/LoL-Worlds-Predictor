@@ -25,6 +25,8 @@ the commit, a config hash, the CSV sha256, H, q, sigma and seed. Phu tags the me
 decided 2026-11-09, after the QFs had started and were public, and the format sources were read 2026-11-10. The code cannot prove
 those choices were made blind to knockout side selections; it can only state that they were not tuned on any 2026 knockout result.
 A coin-flip-for-game-1 variant is a possible sensitivity check.
+**Snapshot caveat:** the pre-cutoff rows come from a 2026-11-10 CSV snapshot, and alias/config edits are dated after the cutoff, so
+the output is not proven identical to what was knowable on Nov 1 (Oracle's Elixir may have corrected rows since).
 **Alternatives considered:** Re-fitting on 2026 data (rejected: breaks "choices fixed by the backtest only").
 **Evidence:** `tests/test_simulate.py::test_post_cutoff_results_change_nothing` (flipping knockout and other post-cutoff
 results leaves the output identical), `test_game_exactly_at_cutoff_is_not_used`.
@@ -59,7 +61,9 @@ against the data: the first WLDs game on/after each date falls on that UTC day (
 games before `start_date` (regional qualifiers) are counted and reported, not treated as play-in or Swiss.
 **Gap check (Phu 2026-11-10):** the 'no game between the last Swiss game and the cutoff' rule only counts games in an
 international league or involving one of the 16 teams. The real data has 9 LAS academy games on 2026-11-01 05:10-11:42 UTC
-(T1 / Dplus Kia / Hanwha Life / HANJIN BRION academy rosters) in the gap; they are counted and ignored.
+(T1 / Dplus Kia / Hanwha Life / HANJIN BRION academy rosters) in the gap; they are counted and ignored. Playername check (2026 CSV): none of the 22 players in those games appears on
+the pre-cutoff rosters of the 9 teams concerned (the 8 qualifiers' teams and Hanwha Life), so they are academy rosters, not
+mislabelled main-roster games. A null or `unknown team` name in the gap counts as relevant and raises.
 **Revisit if:** An official page gives different dates.
 
 ## 2026-10-26 — Blue-side bonus H and league offsets (merge bar C: PASS)

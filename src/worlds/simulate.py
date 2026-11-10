@@ -135,9 +135,13 @@ def validate_pre_cutoff(games: pd.DataFrame, cfg: dict) -> dict:
         & (games["date"] < cutoff)
         & ~games["gameid"].isin(swiss["gameid"])
     ]
-    relevant = in_gap["league"].isin(cfg["international_leagues"]) | in_gap[
-        "teamname"
-    ].isin(swiss_teams)
+    # A missing or "unknown team" name could hide a Swiss team, so it counts as relevant.
+    relevant = (
+        in_gap["league"].isin(cfg["international_leagues"])
+        | in_gap["teamname"].isin(swiss_teams)
+        | in_gap["teamname"].isna()
+        | in_gap["teamname"].eq("unknown team")
+    )
     gap = in_gap[in_gap["gameid"].isin(in_gap.loc[relevant, "gameid"])]
     if len(gap):
         raise ValueError(
@@ -265,6 +269,8 @@ def write_outputs(
         "dirty_worktree": bool(_git("status", "--porcelain")),
         "config_sha256": config_hash,
         "prediction_cutoff_utc": cutoff.isoformat(),
+        "last_swiss_game_utc": str(result["validation"]["last_swiss_game"]),
+        "n_gap_games_ignored": result["validation"]["n_gap_games_ignored"],
         "last_game_used_utc": str(_before_cutoff(games, cfg)["date"].max()),
         "data_sha256": games_sha256(games, cfg),
         "csv_snapshot": {
@@ -300,6 +306,8 @@ def write_outputs(
         "# Worlds 2026 pre-quarterfinal prediction",
         "",
         "Retroactive: data strictly before the cutoff only; no knockout result used.",
+        "Pre-cutoff rows come from the CSV snapshot below (taken after the cutoff), so later",
+        "corrections to them by Oracle's Elixir are possible.",
         "",
         *(f"- {k}: `{v}`" for k, v in meta.items() if k != "model"),
         f"- model: `{meta['model']}`",

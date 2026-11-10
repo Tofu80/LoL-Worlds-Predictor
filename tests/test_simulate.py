@@ -272,3 +272,35 @@ def test_international_game_in_the_gap_raises_even_with_outside_teams():
     extra = [("intl", "2026-11-01 06:00", "MSI", "Cloud9", "Fnatic", True)]
     with pytest.raises(ValueError, match="last Swiss game"):
         validate_pre_cutoff(build_games(extra), CFG)
+
+
+def test_one_sided_swiss_team_in_a_non_international_gap_game_raises():
+    extra = [("one", "2026-11-01 06:00", "LAS", TEAMS[0], "Fnatic Academy", True)]
+    with pytest.raises(ValueError, match="last Swiss game"):
+        validate_pre_cutoff(build_games(extra), CFG)
+
+
+def test_unknown_team_name_in_a_gap_game_raises():
+    extra = [("unk", "2026-11-01 06:00", "LPL", "unknown team", "Fnatic Academy", True)]
+    with pytest.raises(ValueError, match="last Swiss game"):
+        validate_pre_cutoff(build_games(extra), CFG)
+
+
+def test_meta_records_last_swiss_game_and_ignored_gap_games(tmp_path, monkeypatch):
+    import json
+
+    from worlds import simulate
+
+    raw = tmp_path / "raw.csv"
+    raw.write_text("x")
+    monkeypatch.setattr(simulate, "RAW_2026", raw)
+    monkeypatch.setattr(simulate, "OUT_DIRS", [tmp_path / "out"])
+    extra = [
+        ("acad", "2026-11-01 06:00", "LAS", "Cloud9 Academy", "Fnatic Academy", True)
+    ]
+    games = build_games(extra)
+    result = predict(games, CFG, 20, np.random.default_rng(1))
+    paths = simulate.write_outputs(result, CFG, games, 42)
+    meta = json.loads(paths[0].read_text())["meta"]
+    assert meta["n_gap_games_ignored"] == 1
+    assert meta["last_swiss_game_utc"] == str(result["validation"]["last_swiss_game"])
