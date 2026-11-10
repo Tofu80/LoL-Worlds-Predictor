@@ -32,3 +32,11 @@ def test_wlds_games_before_start_date_exist_as_qualifier_rating_data(year):
     start = pd.Timestamp(CFG["tournaments"][year]["start_date"])
     dates = wlds_dates(year)
     assert (dates < start).any()  # qualifiers: kept as rating data, not evaluated
+
+
+def test_2026_play_in_and_swiss_open_on_the_configured_days():
+    cfg = yaml.safe_load(Path("config/worlds_2026.yaml").read_text())
+    dates = wlds_dates(2026)
+    for key in ("start_date", "swiss_start"):
+        day = pd.Timestamp(cfg[key])
+        assert dates[dates >= day].min().normalize() == day, key
