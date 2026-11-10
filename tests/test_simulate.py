@@ -258,3 +258,17 @@ def test_predict_reports_games_per_q_league():
     out = predict(build_games(), CFG, 20, np.random.default_rng(1))
     assert out["q_league_games"]["LCK"] > 0
     assert out["q_league_games"]["CBLOL"] == 0
+
+
+def test_unrelated_game_in_the_gap_is_ignored_but_counted():
+    extra = [
+        ("acad", "2026-11-01 06:00", "LAS", "Cloud9 Academy", "Fnatic Academy", True)
+    ]
+    summary = validate_pre_cutoff(build_games(extra), CFG)
+    assert summary["n_gap_games_ignored"] == 1
+
+
+def test_international_game_in_the_gap_raises_even_with_outside_teams():
+    extra = [("intl", "2026-11-01 06:00", "MSI", "Cloud9", "Fnatic", True)]
+    with pytest.raises(ValueError, match="last Swiss game"):
+        validate_pre_cutoff(build_games(extra), CFG)

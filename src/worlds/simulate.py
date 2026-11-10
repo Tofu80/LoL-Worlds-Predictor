@@ -128,11 +128,17 @@ def validate_pre_cutoff(games: pd.DataFrame, cfg: dict) -> dict:
         )
 
     last_swiss = swiss["date"].max()
-    gap = games[
+    # Only games that could rate or involve the 16 teams count: international league or a
+    # Swiss team. Other leagues' games in the gap (e.g. academy leagues) are counted, ignored.
+    in_gap = games[
         (games["date"] >= last_swiss)
         & (games["date"] < cutoff)
         & ~games["gameid"].isin(swiss["gameid"])
     ]
+    relevant = in_gap["league"].isin(cfg["international_leagues"]) | in_gap[
+        "teamname"
+    ].isin(swiss_teams)
+    gap = in_gap[in_gap["gameid"].isin(in_gap.loc[relevant, "gameid"])]
     if len(gap):
         raise ValueError(
             f"{gap['gameid'].nunique()} game(s) between the last Swiss game {last_swiss} "
@@ -143,6 +149,7 @@ def validate_pre_cutoff(games: pd.DataFrame, cfg: dict) -> dict:
         "n_playin_games": int(len(in_window) - len(swiss)),
         "n_qualifier_wlds": n_qualifier,
         "last_swiss_game": last_swiss,
+        "n_gap_games_ignored": int(in_gap["gameid"].nunique()),
         "records": {t: records.get(t, [0, 0]) for t in sorted(swiss_teams)},
     }
 
@@ -331,7 +338,8 @@ def main() -> None:
     v = result["validation"]
     print(
         f"Validated: {v['n_playin_games']} play-in + {v['n_swiss_games']} Swiss games, "
-        f"{v['n_qualifier_wlds']} WLDs qualifier games before start_date; last Swiss game {v['last_swiss_game']}"
+        f"{v['n_qualifier_wlds']} WLDs qualifier games before start_date; last Swiss game {v['last_swiss_game']}; "
+        f"{v['n_gap_games_ignored']} unrelated game(s) between it and the cutoff ignored"
     )
     print(
         f"H = {result['h']:.1f}, q = {result['q']:.3f} (n = {result['n_q']}), sigma = {result['sigma']}"

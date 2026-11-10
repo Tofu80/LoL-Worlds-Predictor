@@ -57,6 +57,9 @@ riftdaily.com/lol-worlds-2026-knockout-stage/ (format, records, bracket); lolesp
 exitlag.com/news/worlds-2026-play-in-stage/ (dates, as returned by a search snippet, not read in full). Cross-checked
 against the data: the first WLDs game on/after each date falls on that UTC day (`tests/test_real_data.py`). WLDs-labelled
 games before `start_date` (regional qualifiers) are counted and reported, not treated as play-in or Swiss.
+**Gap check (Phu 2026-11-10):** the 'no game between the last Swiss game and the cutoff' rule only counts games in an
+international league or involving one of the 16 teams. The real data has 9 LAS academy games on 2026-11-01 05:10-11:42 UTC
+(T1 / Dplus Kia / Hanwha Life / HANJIN BRION academy rosters) in the gap; they are counted and ignored.
 **Revisit if:** An official page gives different dates.
 
 ## 2026-10-26 — Blue-side bonus H and league offsets (merge bar C: PASS)
