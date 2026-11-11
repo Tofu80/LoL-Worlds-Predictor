@@ -98,6 +98,8 @@ def check_prediction(pred: dict, cfg: dict, rng: np.random.Generator) -> None:
     """Re-run the saved simulation (saved strengths, H, q, sigma, n_runs; rng seeded by the
     caller with the saved seed) and raise unless it reproduces the saved odds."""
     m = pred["meta"]
+    if m.get("dirty_worktree"):
+        raise ValueError("the prediction was generated from a dirty worktree")
     table = run_simulation(
         pred["strengths"], m["H"], m["q"], cfg, m["n_runs"], rng, m["sigma"]
     ).round(4)
@@ -268,6 +270,16 @@ def check_against_csv(
         & (games["date"].dt.year == cutoff.year)
     ]
     table = _blue_red(g).sort_values(["date", "gameid"]) if len(g) else None
+    if table is not None:
+        known = {
+            t for s in series if s.round_name == "quarterfinals" for t in (s.a, s.b)
+        }
+        stray = (set(table["blue"]) | set(table["red"])) - known
+        if stray:
+            raise ValueError(
+                f"post-cutoff WLDs games with team(s) outside the knockout: {sorted(stray)} "
+                "(missing alias, or a team not in the bracket)"
+            )
     status = {}
     for s in series:
         if s.winner is None:
@@ -282,6 +294,10 @@ def check_against_csv(
                 (r.blue, r.blue if r.result == 1 else r.red)
                 for r in m.itertuples(index=False)
             ]
+            if len(m) and s.start is not None and s.start > m["date"].min():
+                raise ValueError(
+                    f"{s.id}: start_utc {s.start} is after its first CSV game {m['date'].min()}"
+                )
         if not csv:
             status[s.id] = "unverified (not in the CSV)"
         elif len(csv) > len(s.games) or csv != list(s.games[: len(csv)]):
@@ -338,13 +354,19 @@ def load_odds(odds_dir: Path, info: dict[str, tuple]) -> dict[str, dict]:
         start = info[sid][2]
         before = [s for s in snaps if s["timestamp_utc"] < start]
         rejected = [s for s in snaps if s["timestamp_utc"] >= start]
-        if before:
-            chosen = max(before, key=lambda s: s["timestamp_utc"])
-            out[sid] = {
-                "chosen": chosen,
-                "rejected": rejected,
-                "p": margin_free(chosen["odds"]),
-            }
+        chosen = max(before, key=lambda s: s["timestamp_utc"]) if before else None
+        if (
+            chosen
+            and sum(s["timestamp_utc"] == chosen["timestamp_utc"] for s in before) > 1
+        ):
+            raise ValueError(
+                f"{sid}: several snapshots share the latest pre-start timestamp {chosen['timestamp_utc']}"
+            )
+        out[sid] = {
+            "chosen": chosen,  # None if every snapshot is at or after the start
+            "rejected": rejected,
+            "p": margin_free(chosen["odds"]) if chosen else None,
+        }
     return out
 
 
@@ -395,6 +417,8 @@ def score_all(
     m, strengths = pred["meta"], pred["strengths"]
     h, q, sigma = m["H"], m["q"], m["sigma"]
     done = [s for s in series if s.winner is not None]
+    if not done:
+        raise ValueError("no finished series to score")
 
     def blue_only(round_name, a, b):
         return bo5_rofs_win_prob(
@@ -472,10 +496,20 @@ def score_all(
     games["model_minus_blue_only"] = {"mean": d, "ci95": [lo, hi]}
 
     by_id = {r["series"]: r for r in rows}
-    orows = []
+    orows, skipped = [], []
     for sid, o in odds.items():
-        if sid not in by_id:
-            continue  # snapshot for a series that has not finished
+        if sid not in by_id or o["chosen"] is None:
+            skipped.append(
+                {
+                    "series": sid,
+                    "reason": "series not finished"
+                    if sid not in by_id
+                    else "every snapshot at or after the series start",
+                    "files": [x["file"] for x in o["rejected"]]
+                    + ([o["chosen"]["file"]] if o["chosen"] else []),
+                }
+            )
+            continue
         r = by_id[sid]
         orows.append(
             {
@@ -489,7 +523,7 @@ def score_all(
             }
         )
     yo = [r["a_won"] for r in orows]
-    odds_out: dict = {"n": len(orows), "rows": orows}
+    odds_out: dict = {"n": len(orows), "rows": orows, "skipped": skipped}
     if orows:
         odds_out |= {
             "bookmaker_log_loss": log_loss([r["p_a_bookmaker"] for r in orows], yo),
@@ -505,6 +539,9 @@ def score_all(
             "series": len(done),
             "games": len(grows),
             "odds_series": len(orows),
+            "games_in_unfinished_series": sum(
+                len(s.games) for s in series if s.winner is None
+            ),
             "round_items": sum(v["n"] for v in rounds.values()),
         },
         "series": rows,
@@ -608,6 +645,13 @@ def render_md(doc: dict) -> str:
             lines += ["", f"rejected (at or after the series start): {rej}"]
     else:
         lines.append(o["note"])
+    if o["skipped"]:
+        lines += ["", f"snapshots not used: {o['skipped']}"]
+    if n["games_in_unfinished_series"]:
+        lines += [
+            "",
+            f"{n['games_in_unfinished_series']} game(s) of unfinished series are not scored.",
+        ]
     return "\n".join(lines) + "\n"
 
 

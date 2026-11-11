@@ -424,6 +424,7 @@ def test_score_all_counts_and_labels():
         "series": 7,
         "games": n_games,
         "odds_series": 0,
+        "games_in_unfinished_series": 0,
         "round_items": 24,
     }
     assert out["partial"] is False
@@ -569,3 +570,112 @@ def test_load_prediction_is_read_only(tmp_path):
     before = p.stat().st_mtime_ns
     score.load_prediction(p)
     assert p.stat().st_mtime_ns == before
+
+
+# ---------- leakage-review follow-ups ----------
+
+
+def test_check_prediction_refuses_a_dirty_worktree_prediction():
+    cfg, pred = small_pred()
+    pred["meta"]["dirty_worktree"] = True
+    with pytest.raises(ValueError, match="dirty"):
+        score.check_prediction(pred, cfg, np.random.default_rng(1))
+
+
+def test_csv_check_start_after_first_csv_game_raises():
+    s = score.parse_results(full_doc(), CFG)
+    qf1 = s[0]  # start_utc 2026-11-03T22:00
+    late = csv_rows((qf1.a, qf1.b), qf1.games, start="2026-11-03T20:00:00")
+    with pytest.raises(ValueError, match="start_utc"):
+        score.check_against_csv(s, late, CUTOFF)
+
+
+def test_csv_check_unknown_team_name_raises():
+    s = score.parse_results(full_doc(), CFG)
+    rows = csv_rows(("LYON Gaming", "T1"), [("T1", "T1")])
+    with pytest.raises(ValueError, match="LYON Gaming"):
+        score.check_against_csv(s, rows, CUTOFF)
+
+
+def test_odds_all_snapshots_after_start_are_reported_not_dropped(tmp_path):
+    a, b = QFS[0]
+    start = pd.Timestamp("2026-11-03T22:00:00")
+    snapshot(
+        tmp_path / "worlds_2026_QF1_a.yaml",
+        "QF1",
+        "2026-11-03T23:00:00",
+        "X",
+        {a: 1.5, b: 2.6},
+    )
+    odds = score.load_odds(tmp_path, {"QF1": (a, b, start)})
+    assert odds["QF1"]["chosen"] is None and len(odds["QF1"]["rejected"]) == 1
+    series = score.parse_results(full_doc(), CFG)
+    out = score.score_all(
+        made_up_pred(), CFG, series, odds, np.random.default_rng(0), NODES, 50
+    )
+    assert out["n"]["odds_series"] == 0
+    assert out["odds"]["skipped"][0]["series"] == "QF1"
+    assert "after the series start" in out["odds"]["skipped"][0]["reason"]
+
+
+def test_odds_for_an_unfinished_series_are_reported(tmp_path):
+    series = score.parse_results(blank(full_doc(), "F"), CFG, partial=True)
+    f = series[-1]
+    snapshot(
+        tmp_path / "worlds_2026_F_a.yaml",
+        "F",
+        "2026-11-13T10:00:00",
+        "X",
+        {f.a: 1.6, f.b: 2.4},
+    )
+    odds = score.load_odds(tmp_path, {"F": (f.a, f.b, f.start)})
+    out = score.score_all(
+        made_up_pred(), CFG, series, odds, np.random.default_rng(0), NODES, 50
+    )
+    assert out["odds"]["skipped"][0]["reason"] == "series not finished"
+
+
+def test_odds_tie_on_latest_timestamp_raises(tmp_path):
+    a, b = QFS[0]
+    start = pd.Timestamp("2026-11-03T22:00:00")
+    snapshot(
+        tmp_path / "worlds_2026_QF1_a.yaml",
+        "QF1",
+        "2026-11-03T20:00:00",
+        "X",
+        {a: 1.5, b: 2.6},
+    )
+    snapshot(
+        tmp_path / "worlds_2026_QF1_b.yaml",
+        "QF1",
+        "2026-11-03T20:00:00",
+        "Y",
+        {a: 1.4, b: 3.0},
+    )
+    with pytest.raises(ValueError, match="share"):
+        score.load_odds(tmp_path, {"QF1": (a, b, start)})
+
+
+def test_partial_with_no_finished_series_refuses():
+    d = blank(full_doc(), *score.IDS)
+    series = score.parse_results(d, CFG, partial=True)
+    with pytest.raises(ValueError, match="no finished series"):
+        score.score_all(
+            made_up_pred(), CFG, series, {}, np.random.default_rng(0), NODES, 50
+        )
+
+
+def test_partial_counts_games_of_unfinished_series():
+    d = full_doc()
+    f = d["series"]["F"]
+    d["series"]["F"] = {
+        "start_utc": f["start_utc"],
+        "winner": None,
+        "score": None,
+        "games": f["games"][:2],
+    }
+    series = score.parse_results(d, CFG, partial=True)
+    out = score.score_all(
+        made_up_pred(), CFG, series, {}, np.random.default_rng(0), NODES, 50
+    )
+    assert out["n"]["games_in_unfinished_series"] == 2

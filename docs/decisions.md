@@ -36,6 +36,12 @@ saved odds. Output goes to `results/worlds_2026_preQF_score[_partial][_vN].{json
 **Evidence:** `tests/test_score.py` (conditional series probability vs brute-force enumeration and a dense integral, round scoring with
 hand values, margin removal, incomplete-results refusal, no-overwrite, mismatch with the saved prediction raises). On made-up results the
 re-derived QF probabilities match the saved sim odds to Monte Carlo error (e.g. QF4 Gen.G 0.956 vs 0.957).
+**Game level and noise:** per-game P(blue) also averages over the noise independently per game, but the sim holds one noise draw per team
+for the whole bracket, so games within a series are correlated and the selection effect applies to SF/final games too. Not corrected.
+**Leakage review (2026-11-12):** no look-ahead found. Fixed with tests: dirty-worktree prediction refused; `start_utc` after the first CSV
+game raises; unknown post-cutoff WLDs team names raise (missing alias); skipped odds snapshots are listed; tied snapshots raise;
+`--partial` with nothing finished refuses and counts games of unfinished series. Open: `check_prediction` proves internal consistency
+(saved odds follow from saved strengths/H/q under the tagged config) but not that those inputs came from pre-cutoff data.
 **Limit:** n is 7 series, about 25-35 games and 8 items per round; no conclusion about model quality can come from this alone.
 Run on the real results after the final in a follow-up commit.
 
