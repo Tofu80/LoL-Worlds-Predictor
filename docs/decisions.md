@@ -12,6 +12,33 @@ Each entry: what was decided, what else was considered, the evidence, and when t
 **Revisit if:**
 -->
 
+## 2026-11-12 — Scoring the frozen pre-QF prediction (D1-D3, Phu)
+**Decision:** `python -m worlds.score [--partial]` scores `results/worlds_2026_preQF.json` (tag `pred-2026-preQF` -> 1efe4e7)
+against the real knockout. It loads the saved prediction and never writes it; it refuses to run unless the tag's commit and
+config hash match the saved meta and a re-run of the saved simulation (saved strengths, H, q, sigma, n_runs, seed) reproduces the
+saved odds. Output goes to `results/worlds_2026_preQF_score[_partial][_vN].{json,md}` and is never overwritten.
+- **D1 (results source):** hand-entered `config/worlds_2026_results.yaml` (per series: start, winner, score, per game blue team and
+  winner), cross-checked against the Oracle's Elixir CSV when it has the games (mismatch raises; absent = reported "unverified").
+  Alternative: CSV only (rejected: it can lag days behind the final). Risk: typos, caught by the internal consistency checks.
+- **D2 (what is scored):** series P(A wins | A meets B) = the sim's RoFS Bo5 model averaged over the rating noise,
+  E over d ~ N(0, sigma*sqrt 2) of `bo5_rofs_win_prob(sA + d, sB, H, q, game-1 rule)`, by Gauss-Hermite quadrature (41 nodes, no RNG).
+  The sim adds one N(0, 50) per team per run and holds it for the whole bracket, so this equals the sim for QFs; for SF and the final
+  it ignores the selection effect (a team that advanced tended to have positive noise), so it is slightly less favourable to
+  advancing underdogs than the sim's own conditional. Alternatives: sim-conditional Monte Carlo (noisy, rare matchups have almost no
+  samples), noise-free strengths (more extreme than anything the sim produced). Round level uses the saved P(SF)/P(final)/P(title)
+  (8 teams per round, scored only once the round is fully decided). Game level: P(blue wins) from the cutoff ratings, frozen (no
+  in-knockout updates), with the real blue side. Baselines: constant 0.5 (round level: every series 0.5, i.e. 0.5/0.25/0.125) and
+  blue-only (equal strengths, blue bonus H only; the game-level rate is the one H was fitted on).
+- **D3 (odds):** hand-entered snapshots `results/odds/worlds_2026_<series>_<timestamp>.yaml` (schema in `config/score.yaml`). The latest
+  snapshot strictly before the series start is used; later ones are reported and ignored. Margin removed by normalising implied
+  probabilities to sum to 1; log loss compared on the series that have odds only. Caveat: SF/final odds know the earlier results, the
+  frozen model does not. No snapshot files: skipped, and the output says so.
+**Evidence:** `tests/test_score.py` (conditional series probability vs brute-force enumeration and a dense integral, round scoring with
+hand values, margin removal, incomplete-results refusal, no-overwrite, mismatch with the saved prediction raises). On made-up results the
+re-derived QF probabilities match the saved sim odds to Monte Carlo error (e.g. QF4 Gen.G 0.956 vs 0.957).
+**Limit:** n is 7 series, about 25-35 games and 8 items per round; no conclusion about model quality can come from this alone.
+Run on the real results after the final in a follow-up commit.
+
 ## 2026-11-10 — Retroactive pre-quarterfinal prediction: integrity note
 **Decision:** `python -m worlds.simulate` produces the Worlds 2026 pre-quarterfinal prediction using only games with
 `date < 2026-11-02T00:00:00` UTC (`prediction_cutoff`). Rows from the cutoff on are dropped right after loading, before
