@@ -35,6 +35,7 @@ ruff check . && ruff format .
 python -m worlds.ingest        # first: writes data/processed/games.parquet
 python -m worlds.backtest      # Worlds 2023–2025: current vs +H vs +H+league vs blue-only vs 0.5, k_league grid, bootstrap CI, calibration by matchup class (odds comparison not wired yet)
 python -m worlds.simulate      # current title odds
+python -m worlds.score         # score the frozen pre-QF prediction vs real results (--partial if the final isn't in)
 ```
 
 Update this section when the real commands differ.

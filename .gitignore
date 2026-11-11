@@ -17,3 +17,6 @@ data/raw/*
 runs/
 .DS_Store
 **/.superpowers/
+
+# Per-machine Claude Code permissions
+.claude/settings.local.json

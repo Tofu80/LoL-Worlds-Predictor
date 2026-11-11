@@ -1,0 +1,23 @@
+# Actual Worlds 2026 knockout results, hand-entered after each series (python -m worlds.score).
+# Template: fill in from the broadcast / lolesports.com, then it is cross-checked against the
+# Oracle's Elixir CSV once that is refreshed. Team names are the canonical ones in config/.
+# QF pairs come from config/worlds_2026.yaml; SF and final pairs are derived from the winners here.
+#   start_utc: first game start, UTC
+#   winner:    series winner, null until finished
+#   score:     [winner's games, loser's games]
+#   games:     in play order, the blue-side team and the winner of each game
+# Example:
+#   QF1:
+#     start_utc: 2026-11-03T22:00:00
+#     winner: Bilibili Gaming
+#     score: [3, 1]
+#     games:
+#       - {blue: Dplus Kia, winner: Bilibili Gaming}
+series:
+  QF1: {start_utc: null, winner: null, score: null, games: []}
+  QF2: {start_utc: null, winner: null, score: null, games: []}
+  QF3: {start_utc: null, winner: null, score: null, games: []}
+  QF4: {start_utc: null, winner: null, score: null, games: []}
+  SF1: {start_utc: null, winner: null, score: null, games: []}
+  SF2: {start_utc: null, winner: null, score: null, games: []}
+  F: {start_utc: null, winner: null, score: null, games: []}

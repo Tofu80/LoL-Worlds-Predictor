@@ -2,6 +2,7 @@ import hashlib
 import json
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
@@ -27,18 +28,18 @@ OUT_DIRS = [Path("data/processed/predictions"), Path("results")]
 OUT_NAME = "worlds_2026_preQF"
 
 
-def load_config() -> dict:
+def load_config(read: Callable[[Path], str] = Path.read_text) -> dict:
     """elo.yaml + worlds_2026.yaml + ingest.yaml's international_leagues, one flat dict."""
     cfg = {
-        **yaml.safe_load(Path("config/elo.yaml").read_text()),
-        **yaml.safe_load(Path("config/worlds_2026.yaml").read_text()),
+        **yaml.safe_load(read(Path("config/elo.yaml"))),
+        **yaml.safe_load(read(Path("config/worlds_2026.yaml"))),
     }
-    cfg["rating_updates"] = yaml.safe_load(Path("config/backtest.yaml").read_text())[
+    cfg["rating_updates"] = yaml.safe_load(read(Path("config/backtest.yaml")))[
         "rating_updates"
     ]
-    cfg["international_leagues"] = yaml.safe_load(
-        Path("config/ingest.yaml").read_text()
-    )["international_leagues"]
+    cfg["international_leagues"] = yaml.safe_load(read(Path("config/ingest.yaml")))[
+        "international_leagues"
+    ]
     return cfg
 
 

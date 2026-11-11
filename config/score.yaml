@@ -1,0 +1,16 @@
+# Scoring the frozen Worlds 2026 pre-quarterfinal prediction (python -m worlds.score).
+tag: pred-2026-preQF
+prediction: results/worlds_2026_preQF.json   # read only, never regenerated
+results: config/worlds_2026_results.yaml
+odds_dir: results/odds
+out_dir: results
+out_stem: worlds_2026_preQF_score            # + _partial for --partial, + _vN for re-runs
+quadrature_nodes: 41                         # Gauss-Hermite nodes for averaging over rating noise
+# Odds snapshot (hand-entered), one file per series and time:
+#   results/odds/worlds_2026_<series>_<timestamp>.yaml, e.g. worlds_2026_QF1_20261103T200000Z.yaml
+#     series: QF1                            # QF1..QF4, SF1, SF2, F
+#     bookmaker: example
+#     timestamp_utc: 2026-11-03T20:00:00     # UTC
+#     odds: {Dplus Kia: 1.45, Bilibili Gaming: 2.75}   # decimal odds, exactly the two teams
+# The latest snapshot strictly before the series start is used; later ones are reported and ignored.
+# The margin is removed by normalising implied probabilities to sum to 1.
