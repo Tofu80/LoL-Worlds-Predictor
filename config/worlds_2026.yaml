@@ -1,5 +1,5 @@
-# WARNING: verify these rules against official Riot 2026 Worlds announcement
-# before running any simulation. Do not assume format from memory.
+# Format checked 2026-11-10 against itemgame.com/en-id/blog/worlds-2026-quarterfinals-schedule-bracket-swiss-results
+# and riftdaily.com/lol-worlds-2026-knockout-stage/ (both published 2026-11-02).
 year: 2026
 # Canonical names (must appear in team_aliases.yaml "canonical").
 # Fill in from the official qualified-teams list.
@@ -20,18 +20,52 @@ teams:
   - Invictus Gaming
   - Dplus Kia
   - Karmine Corp
+# Dates are UTC days (tests/test_real_data.py checks the first WLDs game on/after each).
+# Play-In Oct 15-18 (Los Angeles), Swiss from Oct 23 (Allen, Texas): lolesports.com/en-US/news/msi-and-worlds-updates,
+# exitlag.com/news/worlds-2026-play-in-stage/. Earlier WLDs-labelled games are regional qualifiers.
+start_date: 2026-10-15      # play-in start; ratings start from games before this
+swiss_start: 2026-10-23
+# Retroactive pre-quarterfinal prediction: data strictly before this instant, no knockout result
+# is read. Last Swiss day is Oct 31 US (Nov 1 UTC); first QF is Nov 3 ~22:00 UTC.
+prediction_cutoff: 2026-11-02T00:00:00
 swiss:
   total_teams: 16
   advance: 8
   eliminate: 8
   win_target: 3    # wins to qualify
   loss_target: 3   # losses to be eliminated
-  bo1_rounds: [1, 2, 3]
-  bo3_rounds: [4, 5]
+  # Bo3 only when a team in the match is one win from qualifying or one loss from elimination
+  # (a 2-x or x-2 record); every other match is Bo1.
+  bo3_when_record_has: 2
+# Final Swiss records (itemgame + riftdaily agree); recomputed from the data and checked in
+# worlds.simulate.validate_pre_cutoff. Order = nothing; the seed is the record.
+swiss_results:
+  Gen.G: [3, 0]
+  Dplus Kia: [3, 0]
+  T1: [3, 1]
+  Invictus Gaming: [3, 1]
+  Top Esports: [3, 1]
+  Bilibili Gaming: [3, 2]
+  Karmine Corp: [3, 2]
+  LYON: [3, 2]
+# Fixed bracket from the official draw; every series is Bo5. QF1 and QF2 feed SF1, QF3 and QF4 feed SF2.
 knockout:
-  # How Swiss records map to bracket slots (e.g. 3-0 teams vs 3-2 teams,
-  # same-region avoidance). Fill in from the official rules.
-  seeding: null
-  quarterfinals: bo5
-  semifinals: bo5
-  final: bo5
+  series_format: bo5
+  quarterfinals:
+    - [Dplus Kia, Bilibili Gaming]
+    - [Karmine Corp, T1]
+    - [Top Esports, Invictus Gaming]
+    - [Gen.G, LYON]
+  semifinals: [[0, 1], [2, 3]]   # indices into quarterfinals
+# Right of First Selection (RoFS): the holder picks side OR draft order; only side is modelled.
+# ASSUMPTION (Phu 2026-11-09), unconfirmed against the 2026 Worlds ruleset: the holder of game 1 follows
+# Worlds' historical side-selection methods, and later games go to the previous game's loser.
+rofs_game1:
+  quarterfinals: higher_seed   # better Swiss record holds it; equal records -> coin flip
+  semifinals: coin_flip
+  final: coin_flip
+rofs_later_games: loser
+# P(holder ends up on blue), estimated from 2026 games before the cutoff (series.rofs_q); also used for game 1.
+rofs_blue_rate: pre_cutoff_estimate
+rofs_q_leagues: [LCK, LPL, LEC, LCS, CBLOL, LCP, WLDs, MSI, FST, EWC, ASI]
+rofs_series_gap_hours: 4

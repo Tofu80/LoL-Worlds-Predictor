@@ -12,6 +12,60 @@ Each entry: what was decided, what else was considered, the evidence, and when t
 **Revisit if:**
 -->
 
+## 2026-11-10 — Retroactive pre-quarterfinal prediction: integrity note
+**Decision:** `python -m worlds.simulate` produces the Worlds 2026 pre-quarterfinal prediction using only games with
+`date < 2026-11-02T00:00:00` UTC (`prediction_cutoff`). Rows from the cutoff on are dropped right after loading, before
+any validation, rating or print. The prediction was produced in Nov 2026, after some knockout games had been played.
+Model choices (K, half-life, H, league offsets, `k_league`) were fixed by the 2023-25 backtest (PR #13) before this work;
+the new pieces (RoFS side model, sigma = 50) were chosen without looking at any 2026 knockout result. No 2026 data after
+the cutoff was used, and this PR loads, prints and compares no knockout result. A later PR compares the prediction with
+what happened. Any re-run (new CSV, config or code) is a new version and does not replace this one; the output records
+the commit, a config hash, the CSV sha256, H, q, sigma and seed. Phu tags the merged commit `pred-2026-preQF`.
+**Known limit (open, leakage review):** the RoFS design (holder rule, reusing q for game 1, the league list and the 4 h gap) was
+decided 2026-11-09, after the QFs had started and were public, and the format sources were read 2026-11-10. The code cannot prove
+those choices were made blind to knockout side selections; it can only state that they were not tuned on any 2026 knockout result.
+A coin-flip-for-game-1 variant is a possible sensitivity check.
+**Snapshot caveat:** the pre-cutoff rows come from a 2026-11-10 CSV snapshot, and alias/config edits are dated after the cutoff, so
+the output is not proven identical to what was knowable on Nov 1 (Oracle's Elixir may have corrected rows since).
+**Alternatives considered:** Re-fitting on 2026 data (rejected: breaks "choices fixed by the backtest only").
+**Evidence:** `tests/test_simulate.py::test_post_cutoff_results_change_nothing` (flipping knockout and other post-cutoff
+results leaves the output identical), `test_game_exactly_at_cutoff_is_not_used`.
+
+## 2026-11-10 — Knockout series use a Right-of-First-Selection side model (Phu 2026-11-09, revised option 2)
+**Decision:** For knockout Bo5s the per-game win probability is `p_A = q_A*E(sA+H, sB) + (1-q_A)*E(sA, sB+H)` where
+`q_A` is A's probability of being on blue. This replaces "p constant within a series" for knockout series (Swiss and the
+backtest keep the constant-p functions). The RoFS holder picks side OR draft order; only side is modelled (no draft-order
+term). Holder: QF game 1 = better Swiss record (equal records, TES vs IG: coin flip); SF and final game 1 = coin flip;
+games 2+ = loser of the previous game. The holder is on blue with probability q, estimated from 2026 games before the
+cutoff: the share of games 2+ (same two teams, < 4 h after the previous game) in LCK, LPL, LEC, LCS, CBLOL, LCP, WLDs, MSI,
+FST, EWC, ASI where the previous loser played blue. The same q is used for game 1. `series.bo5_rofs_win_prob` is an exact
+recursion over (wins A, wins B, previous loser) and matches brute-force enumeration over 5-game paths and side outcomes.
+With H = 0 it equals p^3(10-15p+6p^2) for every q; with q = 0.5 it equals the side-neutral average.
+**Unconfirmed assumption:** the game-1 holder rule follows Worlds' historical side-selection methods and has NOT been
+checked against the 2026 Worlds ruleset (neither source page mentions side selection).
+**Alternatives considered:** Constant p for knockouts (ignores that the loser tends to take red); modelling first pick /
+draft order (first-pick teams win ~51%, not measurable); q = 0.5.
+**Evidence:** The effect is under 1pp per series either way. Real q and n are printed by `python -m worlds.simulate`.
+**Revisit if:** The 2026 ruleset says otherwise, or q is far from ~0.2.
+
+## 2026-11-10 — Swiss format fix and 2026 dates
+**Decision:** `config/worlds_2026.yaml`: Bo3 only when a team in the match has a 2-x or x-2 record (qualifying or
+elimination match), Bo1 otherwise (replaces the wrong `bo1_rounds`/`bo3_rounds`). Knockout is the fixed official draw,
+all Bo5: QF1 Dplus Kia v Bilibili Gaming, QF2 Karmine Corp v T1 (-> SF1), QF3 Top Esports v Invictus Gaming,
+QF4 Gen.G v LYON (-> SF2). `start_date` 2026-10-15 (play-in), `swiss_start` 2026-10-23, `prediction_cutoff`
+2026-11-02T00:00 UTC (last Swiss day Oct 31 US, first QF Nov 3 ~22:00 UTC).
+**Evidence:** itemgame.com/en-id/blog/worlds-2026-quarterfinals-schedule-bracket-swiss-results and
+riftdaily.com/lol-worlds-2026-knockout-stage/ (format, records, bracket); lolesports.com/en-US/news/msi-and-worlds-updates and
+exitlag.com/news/worlds-2026-play-in-stage/ (dates, as returned by a search snippet, not read in full). Cross-checked
+against the data: the first WLDs game on/after each date falls on that UTC day (`tests/test_real_data.py`). WLDs-labelled
+games before `start_date` (regional qualifiers) are counted and reported, not treated as play-in or Swiss.
+**Gap check (Phu 2026-11-10):** the 'no game between the last Swiss game and the cutoff' rule only counts games in an
+international league or involving one of the 16 teams. The real data has 9 LAS academy games on 2026-11-01 05:10-11:42 UTC
+(T1 / Dplus Kia / Hanwha Life / HANJIN BRION academy rosters) in the gap; they are counted and ignored. Playername check (2026 CSV): none of the 22 players in those games appears on
+the pre-cutoff rosters of the 9 teams concerned (the 8 qualifiers' teams and Hanwha Life), so they are academy rosters, not
+mislabelled main-roster games. A null or `unknown team` name in the gap counts as relevant and raises.
+**Revisit if:** An official page gives different dates.
+
 ## 2026-10-26 — Blue-side bonus H and league offsets (merge bar C: PASS)
 **Decision (Phu, 2026-10-26):** (1) Blue gets +H Elo in `expected_score`, in predictions and updates.
 `H = 400*log10(r/(1-r))`, r = blue win rate over the 365 days before `cutoff_date` (all leagues): 21.5 / 23.1 /

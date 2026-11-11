@@ -106,3 +106,21 @@ def test_league_alias_targets_are_new_names_or_listed_merges():
 def test_ingest_config_excludes_kespa_cup():
     cfg = yaml.safe_load((CONFIG / "ingest.yaml").read_text())
     assert {"KeSPA Cup", "CDF"} <= set(cfg["excluded_leagues"])
+
+
+def test_worlds_2026_knockout_bracket_is_consistent():
+    fmt = yaml.safe_load((CONFIG / "worlds_2026.yaml").read_text())
+    canonical = set(
+        yaml.safe_load((CONFIG / "team_aliases.yaml").read_text())["canonical"]
+    )
+    qf = fmt["knockout"]["quarterfinals"]
+    bracket_teams = [t for pair in qf for t in pair]
+    assert len(qf) == 4 and len(set(bracket_teams)) == 8
+    assert set(bracket_teams) == set(fmt["swiss_results"])
+    assert set(bracket_teams) <= canonical and set(bracket_teams) <= set(fmt["teams"])
+    assert fmt["knockout"]["semifinals"] == [[0, 1], [2, 3]]
+    assert fmt["knockout"]["series_format"] == "bo5"
+    assert len(fmt["swiss_results"]) == fmt["swiss"]["advance"]
+    assert all(
+        r[0] == fmt["swiss"]["win_target"] for r in fmt["swiss_results"].values()
+    )
