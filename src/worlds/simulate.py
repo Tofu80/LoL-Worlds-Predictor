@@ -257,15 +257,16 @@ def games_sha256(games: pd.DataFrame, cfg: dict) -> str:
     return hashlib.sha256(g.to_csv(index=False).encode()).hexdigest()
 
 
-def write_outputs(
-    result: dict, cfg: dict, games: pd.DataFrame, seed: int
-) -> list[Path]:
-    """Write the .json and .md (with provenance) to every OUT_DIR; returns the paths."""
+def build_meta(
+    result: dict, cfg: dict, games: pd.DataFrame, seed: int, raw: Path | None = None
+) -> dict:
+    """Provenance recorded with a prediction: commit, config and data hashes, H, q, sigma, seed."""
+    raw = raw or RAW_2026
     cutoff = pd.Timestamp(cfg["prediction_cutoff"])
     config_hash = hashlib.sha256(
         b"".join(p.read_bytes() for p in CONFIG_FILES)
     ).hexdigest()
-    meta = {
+    return {
         "commit": _git("rev-parse", "HEAD"),
         "dirty_worktree": bool(_git("status", "--porcelain")),
         "config_sha256": config_hash,
@@ -275,10 +276,10 @@ def write_outputs(
         "last_game_used_utc": str(_before_cutoff(games, cfg)["date"].max()),
         "data_sha256": games_sha256(games, cfg),
         "csv_snapshot": {
-            "file": RAW_2026.name,
+            "file": raw.name,
             "covers_post_cutoff_rows": True,  # whole file; informational only
-            "sha256": _sha256(RAW_2026),
-            "modified": pd.Timestamp(RAW_2026.stat().st_mtime, unit="s").isoformat(),
+            "sha256": _sha256(raw),
+            "modified": pd.Timestamp(raw.stat().st_mtime, unit="s").isoformat(),
         },
         "H": result["h"],
         "q": result["q"],
@@ -297,6 +298,13 @@ def write_outputs(
             )
         },
     }
+
+
+def write_outputs(
+    result: dict, cfg: dict, games: pd.DataFrame, seed: int
+) -> list[Path]:
+    """Write the .json and .md (with provenance) to every OUT_DIR; returns the paths."""
+    meta = build_meta(result, cfg, games, seed)
     table = result["table"].round(4)
     doc = {
         "meta": meta,

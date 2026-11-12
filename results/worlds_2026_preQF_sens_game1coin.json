@@ -1,0 +1,173 @@
+{
+  "meta": {
+    "commit": "64171d4a451dc79d5dc728fbb85260d74ed14bca",
+    "dirty_worktree": false,
+    "config_sha256": "fe2d60dbbfedd6818f9d84517aa915e81e847b83465ca3ed228126f0a06cbd23",
+    "prediction_cutoff_utc": "2026-11-02T00:00:00",
+    "last_swiss_game_utc": "2026-10-31 23:05:06",
+    "n_gap_games_ignored": 9,
+    "last_game_used_utc": "2026-11-01 11:42:53",
+    "data_sha256": "3281b29ad7fc7f463b3499e47135f07efdfd57819ae2b7a18223f349110f8122",
+    "csv_snapshot": {
+      "file": "2026_LoL_esports_match_data_from_OraclesElixir.csv",
+      "covers_post_cutoff_rows": true,
+      "sha256": "baea09cf7a1854bc817be2802e494ec0f04b437b442c3993e442e082aa72ed9e",
+      "modified": "2026-11-11T23:44:22.815716028"
+    },
+    "H": 23.309278175100058,
+    "q": 0.21831797235023043,
+    "n_q": 1736,
+    "sigma": 50,
+    "n_runs": 10000,
+    "seed": 42,
+    "model": {
+      "k_factor": 32,
+      "decay_half_life_days": 182,
+      "side_advantage": "pre_cutoff_rate",
+      "league_offsets": "on",
+      "k_league": 64
+    },
+    "variant": "game1_coin_flip",
+    "override": {
+      "file": "config/sensitivity/game1_coin_flip.yaml",
+      "sha256": "de6cb4230dc6453d81902e17b8f86b518b859b7eb84229fb278d835aa97be13d",
+      "content": {
+        "rofs_game1": {
+          "quarterfinals": "coin_flip"
+        }
+      }
+    },
+    "data_hash_matches_primary": true,
+    "compared_to": {
+      "file": "results/worlds_2026_preQF.json",
+      "tag": "pred-2026-preQF",
+      "commit": "1efe4e7d7d3497563eede2bc297f528fe3ca3584",
+      "config_sha256": "fe2d60dbbfedd6818f9d84517aa915e81e847b83465ca3ed228126f0a06cbd23"
+    }
+  },
+  "teams": {
+    "Gen.G": {
+      "primary": {
+        "semifinal": 0.957,
+        "final": 0.7675,
+        "title": 0.5499
+      },
+      "variant": {
+        "semifinal": 0.9577,
+        "final": 0.768,
+        "title": 0.5501
+      }
+    },
+    "Bilibili Gaming": {
+      "primary": {
+        "semifinal": 0.6357,
+        "final": 0.4589,
+        "title": 0.1936
+      },
+      "variant": {
+        "semifinal": 0.6309,
+        "final": 0.4551,
+        "title": 0.1916
+      }
+    },
+    "T1": {
+      "primary": {
+        "semifinal": 0.8598,
+        "final": 0.2947,
+        "title": 0.0821
+      },
+      "variant": {
+        "semifinal": 0.8629,
+        "final": 0.2961,
+        "title": 0.0825
+      }
+    },
+    "Dplus Kia": {
+      "primary": {
+        "semifinal": 0.3643,
+        "final": 0.2323,
+        "title": 0.0741
+      },
+      "variant": {
+        "semifinal": 0.3691,
+        "final": 0.2348,
+        "title": 0.0756
+      }
+    },
+    "Invictus Gaming": {
+      "primary": {
+        "semifinal": 0.5041,
+        "final": 0.1056,
+        "title": 0.0484
+      },
+      "variant": {
+        "semifinal": 0.5041,
+        "final": 0.1055,
+        "title": 0.0483
+      }
+    },
+    "Top Esports": {
+      "primary": {
+        "semifinal": 0.4959,
+        "final": 0.1167,
+        "title": 0.0482
+      },
+      "variant": {
+        "semifinal": 0.4959,
+        "final": 0.1165,
+        "title": 0.0482
+      }
+    },
+    "LYON": {
+      "primary": {
+        "semifinal": 0.043,
+        "final": 0.0102,
+        "title": 0.0022
+      },
+      "variant": {
+        "semifinal": 0.0423,
+        "final": 0.01,
+        "title": 0.0022
+      }
+    },
+    "Karmine Corp": {
+      "primary": {
+        "semifinal": 0.1402,
+        "final": 0.0141,
+        "title": 0.0015
+      },
+      "variant": {
+        "semifinal": 0.1371,
+        "final": 0.014,
+        "title": 0.0015
+      }
+    }
+  },
+  "qf_series": [
+    {
+      "a": "Dplus Kia",
+      "b": "Bilibili Gaming",
+      "primary": 0.36904668058024337,
+      "variant": 0.3750679815332722
+    },
+    {
+      "a": "Karmine Corp",
+      "b": "T1",
+      "primary": 0.14228943710973385,
+      "variant": 0.13888113375708983
+    },
+    {
+      "a": "Top Esports",
+      "b": "Invictus Gaming",
+      "primary": 0.49864088247401245,
+      "variant": 0.49864088247401245
+    },
+    {
+      "a": "Gen.G",
+      "b": "LYON",
+      "primary": 0.9560606432873666,
+      "variant": 0.9573874291737163
+    }
+  ],
+  "max_abs_title_change": 0.0020000000000000018
+}
