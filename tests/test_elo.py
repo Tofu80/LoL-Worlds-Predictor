@@ -481,7 +481,39 @@ def test_history_row_fields_and_opponent():
         "rating_after",
         "offset_before",
         "offset_after",
+        "league_before",
+        "league_after",
     }
     row = h[(h["gameid"] == "w1") & (h["team"] == "A")].iloc[0]
     assert row["opponent"] == "C"
     assert row["offset_after"] != row["offset_before"]  # LCK v LPL moved league ratings
+
+
+def test_history_league_keys_explain_offset_changes_on_domestic_games():
+    """A team's first game in an inheriting league creates an offset, and a team that
+    changes league changes key: offset_after - offset_before is then not a league move,
+    and the league columns say so. Only international games between two keys move offsets."""
+    games = _lg(
+        [
+            ("i1", "2024-01-01", "PCS", "P1", "P2", True),
+            ("i2", "2024-01-02", "LJL", "J1", "J2", True),
+            ("i3", "2024-01-03", "VCS", "V1", "V2", True),
+            ("x1", "2024-02-01", "MSI", "P1", "J1", True),
+            ("lcp", "2024-04-01", "LCP", "P1", "N1", True),
+            ("lck", "2024-05-01", "LCK", "N1", "K1", True),
+        ]
+    )
+    h = pd.DataFrame(replay(games, CUTOFF, ON, record=True).history)
+    g = h[h["gameid"] == "lcp"].set_index("team")
+    assert g.loc["P1", "league_before"] == "PCS"
+    assert g.loc["P1", "league_after"] == "LCP"
+    assert g.loc["P1", "offset_before"] != g.loc["P1", "offset_after"]  # PCS -> LCP key
+    assert (
+        pd.isna(g.loc["N1", "league_before"]) and g.loc["N1", "league_after"] == "LCP"
+    )
+    intl = h[h["gameid"] == "x1"]
+    assert (intl["league_before"] == intl["league_after"]).all()
+    moved = (intl["offset_after"] - intl["offset_before"]).sum()
+    assert abs(moved) < 1e-9 and (intl["offset_after"] != intl["offset_before"]).all()
+    domestic = h[h["gameid"].isin(["i1", "i2", "i3"])]
+    assert (domestic["offset_after"] == domestic["offset_before"]).all()

@@ -351,11 +351,6 @@ def test_bootstrap_diff_reproducible_and_brackets_the_mean():
 # ---- per-game rating history (record=True) ----
 
 
-def history_fixture(mode="in_tournament"):
-    games, cfg = fixture(mode=mode)
-    return games, {**cfg}
-
-
 def test_history_off_by_default():
     games, cfg = fixture()
     assert run(games, cfg).history is None
@@ -404,18 +399,19 @@ def test_history_in_tournament_after_feeds_the_next_games_before():
     assert a2["rating_before"] == a1["rating_after"]
 
 
-REAL = Path("data/processed/games.parquet")
+ROOT = Path(__file__).resolve().parents[1]
+REAL = Path(__file__).resolve().parents[1] / "data/processed/games.parquet"
 
 
 @pytest.mark.skipif(not REAL.exists(), reason="data/processed/games.parquet missing")
 def test_real_data_pooled_log_loss_is_0_6614_with_and_without_record():
     games = pd.read_parquet(REAL)
     config = {
-        **yaml.safe_load(Path("config/elo.yaml").read_text()),
-        **yaml.safe_load(Path("config/backtest.yaml").read_text()),
-        "international_leagues": yaml.safe_load(Path("config/ingest.yaml").read_text())[
-            "international_leagues"
-        ],
+        **yaml.safe_load((ROOT / "config/elo.yaml").read_text()),
+        **yaml.safe_load((ROOT / "config/backtest.yaml").read_text()),
+        "international_leagues": yaml.safe_load(
+            (ROOT / "config/ingest.yaml").read_text()
+        )["international_leagues"],
     }
     out = []
     for record in (False, True):
@@ -428,3 +424,48 @@ def test_real_data_pooled_log_loss_is_0_6614_with_and_without_record():
         out.append(log_loss(preds["p_blue"], preds["result"]))
     assert round(out[0], 4) == 0.6614
     assert out[0] == out[1]
+
+
+def test_history_scored_flag_marks_only_predicted_games():
+    games, cfg = fixture()
+    res = backtest_worlds(2025, games, cfg, CUTOFF, record=True)
+    h = res.history
+    assert set(h.loc[h["scored"], "gameid"]) == {"g1", "g2"}
+    assert set(h.loc[~h["scored"], "gameid"]) == {"g0"}
+
+
+@pytest.mark.parametrize("h_on", [False, True])
+def test_history_before_equals_predicting_strength_with_h_and_offsets(h_on):
+    games = make_games(
+        [
+            ("g0", "2025-10-01 12:00", "LCK", "A", "B", True),
+            ("g1", "2025-10-02 12:00", "LPL", "C", "D", False),
+            ("m1", "2025-10-05 12:00", "MSI", "A", "C", True),
+            ("g2", "2025-10-14 12:00", "WLDs", "A", "D", True),
+            ("g3", "2025-10-15 12:00", "WLDs", "C", "B", False),
+        ]
+    )
+    cfg = {
+        **CONFIG,
+        "league_offsets": "on",
+        "k_league": 16,
+        "international_leagues": ["WLDs", "MSI"],
+        "side_advantage": "pre_cutoff_rate" if h_on else "none",
+        "side_advantage_window_days": 365,
+    }
+    res = backtest_worlds(2025, games, cfg, CUTOFF, record=True)
+    h = res.history.set_index(["gameid", "team"])
+    hh = elo_h(games, cfg) if h_on else 0.0
+    for g in res.predictions.itertuples(index=False):
+        sb = h.loc[(g.gameid, g.blue)]
+        sr = h.loc[(g.gameid, g.red)]
+        p = expected_score(
+            sb["rating_before"] + sb["offset_before"],
+            sr["rating_before"] + sr["offset_before"],
+            hh,
+        )
+        assert p == g.p_blue
+
+
+def elo_h(games, cfg):
+    return replay(games, CUTOFF, cfg).h

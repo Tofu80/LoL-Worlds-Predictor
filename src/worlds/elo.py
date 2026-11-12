@@ -83,18 +83,22 @@ class EloState:
         return expected_score(self.strength(blue), self.strength(red), self.h)
 
     def _snap(self, *teams: str) -> dict:
-        """(team rating, league offset) per team, as strength() reads them."""
+        """(team rating, league offset, league key) per team, as strength() reads them."""
         return {
             t: (
                 self.team.get(t, self.initial),
                 self.league.get(self.member.get(t), 0.0),
+                self.member.get(t),
             )
             for t in teams
         }
 
     def _record(self, blue, red, gameid, date, before, after) -> None:
+        """League keys are recorded because a domestic game can change a team's key or
+        create an inherited offset, so offset_after - offset_before is not always a
+        league-rating move."""
         for team, opp in ((blue, red), (red, blue)):
-            (rb, ob), (ra, oa) = before[team], after[team]
+            (rb, ob, kb), (ra, oa, ka) = before[team], after[team]
             self.history.append(
                 {
                     "gameid": gameid,
@@ -105,6 +109,8 @@ class EloState:
                     "rating_after": ra,
                     "offset_before": ob,
                     "offset_after": oa,
+                    "league_before": kb,
+                    "league_after": ka,
                 }
             )
 

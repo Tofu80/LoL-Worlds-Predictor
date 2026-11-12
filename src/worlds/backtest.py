@@ -134,7 +134,9 @@ def backtest_worlds(
     scored game's own result would already be in the starting ratings.
     record=True also returns result.history: every game from the replay and the window,
     with each team's rating and league offset before and after (equal in frozen mode).
-    It changes no prediction.
+    It changes no prediction. history.scored marks the games in predictions; the rest
+    are replay rows, qualifiers and other leagues. If one team plays two games with the
+    same timestamp, the second row's rating_before includes the first (predictions do not).
     """
     mode = config["rating_updates"]
     if mode not in RATING_UPDATES:
@@ -207,6 +209,10 @@ def backtest_worlds(
     result = score(pd.DataFrame(rows, columns=PREDICTION_COLUMNS))
     if record:
         result.history = pd.DataFrame(state.history)
+        # replay rows (date < cutoff_date), qualifiers and other leagues are not scored
+        result.history["scored"] = result.history["gameid"].isin(
+            result.predictions["gameid"]
+        )
     result.n_prestart_wlds = int(
         (
             (table["league"] == "WLDs")
