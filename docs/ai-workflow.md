@@ -71,19 +71,73 @@ The most useful part of this file. Write entries as they happen.
 **Fix and new rule:** (what changed in code / CLAUDE.md / tests)
 -->
 
-### 2026-10-24 — Team Secret alias judged on dates only
-**What Claude did:** In PR #8, kept `Team Secret` (EWC 2026) separate from `Team Secret Whales` because the
-EWC games fell in different weeks and looked like a name reuse by another roster.
-**How it was caught:** Phu compared playernames in data/raw: both names fielded the same five players
-(Bie, Dire, Eddie, Hizto, Pun).
-**Fix and new rule:** EWC-only league alias to Team Secret Whales (decisions.md). CLAUDE.md "Data notes":
-alias and team-identity decisions use playername overlap as evidence, not just leagues and dates.
+### 2026-10-22 — Swiss format written from general knowledge
+**What Claude did:** Claude Code wrote the `config/worlds_2026.yaml` placeholder (c56185d, Oct 22) with
+`bo1_rounds: [1, 2, 3]` and `bo3_rounds: [4, 5]` from general knowledge. The file had a "verify against the
+official announcement" warning at the top, but the values looked like facts.
+**How it was caught:** Phu spotted it on Oct 24 in a planning chat while looking up the real 2026 format (project
+handover, not recorded in the repo). The real rule: a Bo3 whenever a team can qualify or be eliminated (a 2-x or
+x-2 record), Bo1 otherwise.
+**Fix and new rule:** Fixed Nov 10 in PR #14 (d23db71, `bo3_when_record_has: 2`). It never reached any output,
+because the 2026 prediction is knockout-only. The fix was checked against two news pages
+(decisions.md, 2026-11-10), not an official rulebook. CLAUDE.md: "Check it against the official rules. Don't
+assume it from memory."
+
+### 2026-10-24 — Blank gameids could pair rows across games
+**What Claude did:** Claude Code (Sonnet) wrote the ingest in PR #5. A blank `gameid` was skipped by `groupby`,
+and `elo.py` then cross-joined those rows into fake games.
+**How it was caught:** The Opus `leakage-reviewer`, rated High.
+**Fix and new rule:** Fixed with a test (d5a3cdc): blank gameids and games with no team rows now raise.
+decisions.md (2026-10-24, ingest validation): raise on a bad game, never drop rows silently.
+
+### 2026-10-24 — A reviewer finding silently skipped
+**What Claude did:** Claude Code (Sonnet), PR #5. The reviewer returned 7 findings (1 High). One Low was neither
+fixed nor listed in the PR description: an empty or malformed alias file raised `TypeError` or `KeyError` instead
+of a clear `ValueError`.
+**How it was caught:** Phu's review of the PR (the identity of the skipped finding comes from the planning chat,
+not the repo).
+**Fix and new rule:** Fixed in PR #6 (6c7f7a2). CLAUDE.md: every finding is either fixed with a test or listed in
+the PR description as an open decision.
+
+### 2026-10-24 — Team identity judged on names and dates
+**What Claude did:** Claude Code (Sonnet), PR #8. It kept `Team Secret` (EWC 2026) separate from
+`Team Secret Whales` because the EWC games fell in different weeks and looked like a name reuse. It also left
+two sets of academy rosters playing under main-team names in the data: KeSPA Cup (2024–26 editions; in 2026 T1, Gen.G,
+Hanwha Life, Dplus Kia and KT Rolster) and CDF (Team BDS and Karmine Corp in the 2023 run-up to Worlds). Both fed
+the main teams' Elo.
+**How it was caught:** Phu's playername scans. Both Team Secret names fielded the same five players (Bie, Dire,
+Eddie, Hizto, Pun), and the KeSPA Cup rosters were academy players. The CDF rosters were found in a follow-up
+playername check during PR #9's leakage review, and Phu then decided to exclude them.
+**Fix and new rule:** Fixed in PR #9 (1979bb8, 3c68e8b): an EWC-only league alias to Team Secret Whales, and
+`excluded_leagues: [KeSPA Cup, CDF]` (166 and 141 games dropped). CLAUDE.md "Data notes": alias and
+team-identity decisions use playername overlap as evidence, not just leagues and dates.
+
+### 2026-11-09 — Side choice assumed to mean blue
+**What Claude did:** Desktop Claude (the Nov 9 planning prompt) assumed the Right of First Selection holder
+takes blue side, as the side-selection method did in earlier Worlds.
+**How it was caught:** In planning, before any code: the holder can choose side or draft order, so "holder takes
+blue" did not follow.
+**Fix and new rule:** Replaced by the revised option 2 (decisions.md, 2026-11-10): model side only, and estimate
+q from pre-cutoff games instead of assuming it. The estimate came later: q = 0.218 from 1,736 games, so the
+previous loser was on blue about 22% of the time.
 
 ## What I did myself
 
-_(fill in: e.g. chose the Elo design and half-life from backtests, wrote the series-probability
-tests, checked the Worlds format against the official rules)_
+_Draft, Phu to edit._
+
+- The modelling decisions: time decay by scaling K (option A), the blue-side term H, league offsets, the merge
+  bar C, the Right of First Selection side model (option 2) and the rating noise sigma.
+- The playername scans that caught the Team Secret and KeSPA Cup identity problems.
+- Finding the official 2026 ruleset and checking the side-selection rules against it.
+- The integrity rule for the retroactive prediction, and freezing and tagging it before the final.
+- The odds benchmark (TAB).
+- Choosing what not to build: player ratings, roster-change adjustments and Fearless effects stay parked.
 
 ## What I'd do differently
 
-_(fill in at the end)_
+_Draft, Phu to edit._
+
+- Check the official format before writing any config, not after.
+- Design the integrity protocol before the live window, not after.
+- Capture odds as they are posted, so every round has a market comparison.
+- Run identity checks on players from day one.
