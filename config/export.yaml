@@ -1,0 +1,33 @@
+# Inputs to python -m worlds.export (writes JSON the static site reads). Paths, seasons and
+# the Swiss/knockout dates of Worlds 2023-25 live here; 2026 uses config/worlds_2026.yaml.
+schema_version: 1
+out_dir: site/data
+seasons: [2023, 2024, 2025, 2026]
+decimals: {probability: 4, rating: 1}
+
+# Frozen pre-QF prediction (never re-run) and the files derived from it.
+frozen_prediction: results/worlds_2026_preQF.json
+frozen_tag: pred-2026-preQF
+frozen_committed_utc: 2026-11-10T11:52:38   # commit 1efe4e7 (2026-11-10 22:52 +11:00); played_before_commit compares a series start to this
+sensitivity: results/worlds_2026_preQF_sens_game1coin.json
+score_glob: results/worlds_2026_preQF_score*.json   # newest complete version wins, else newest partial
+results_file: config/worlds_2026_results.yaml        # read only, for series start times
+
+# A series = consecutive games of the same two teams less than this many hours apart.
+series_gap_hours: 4
+
+# Worlds 2023-25 stage dates (UTC days, as in Oracle's Elixir). Games from backtest.yaml's
+# start_date to swiss_start are play-in, then Swiss until knockout_start, then the knockout.
+# The export checks them against the data: 16 Swiss teams, 8 at 3 wins and 8 at 3 losses,
+# and 8 knockout teams (4 quarterfinals, 2 semifinals, 1 final); a wrong date raises.
+# Sources are search results read 2026-11-13, not official-page reads; REVIEW (Phu).
+stages:
+  2023:
+    swiss_start: 2023-10-19     # afkgaming.com, gameleap.com, sportskeeda.com (all: Swiss day 1 = Oct 19)
+    knockout_start: 2023-11-02  # NOT confirmed by any source found; read off the data (no games Oct 30-Nov 1)
+  2024:
+    swiss_start: 2024-10-03     # sportskeeda.com (Swiss Oct 3-13), onlineesports.com
+    knockout_start: 2024-10-17  # sportskeeda.com, onlineesports.com (quarterfinals Oct 17-20)
+  2025:
+    swiss_start: 2025-10-15     # sheepesports.com (Swiss Oct 15-25)
+    knockout_start: 2025-10-28  # sheepesports.com (quarterfinals Oct 28-31)
