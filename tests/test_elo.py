@@ -398,3 +398,90 @@ def test_game_without_one_blue_and_one_red_row_raises():
     games.loc[games["teamname"] == "B", "side"] = "Blue"
     with pytest.raises(ValueError, match="Blue and one Red"):
         compute_ratings(games, CUTOFF, K, INIT, HL, "none")
+
+
+# ---- per-game rating history (record=True) ----
+
+
+def _hist_games():
+    return _lg(
+        [
+            ("h1", "2024-01-01", "LCK", "A", "B", True),
+            ("h2", "2024-01-02", "LPL", "C", "D", False),
+            ("w1", "2024-02-01", "MSI", "A", "C", True),
+            ("w2", "2024-02-02", "MSI", "D", "B", False),
+            ("h3", "2024-03-01", "LCK", "B", "A", True),
+        ]
+    )
+
+
+@pytest.mark.parametrize("cfg", [BASE, ON], ids=["offsets_off", "offsets_on"])
+def test_history_off_by_default_and_state_unchanged_when_on(cfg):
+    games = _hist_games()
+    off = replay(games, CUTOFF, cfg)
+    on = replay(games, CUTOFF, cfg, record=True)
+    assert off.history is None
+    assert (on.team, on.league, on.member, on.h) == (
+        off.team,
+        off.league,
+        off.member,
+        off.h,
+    )
+
+
+@pytest.mark.parametrize("cfg", [BASE, ON], ids=["offsets_off", "offsets_on"])
+def test_history_before_matches_the_rating_used_to_predict(cfg):
+    """Replaying game by game: the 'before' snapshot gives exactly p_blue(blue, red)."""
+    games = _hist_games()
+    full = replay(games, CUTOFF, cfg, record=True)
+    h = pd.DataFrame(full.history)
+    for gid in h["gameid"].unique():
+        # state just before this game = replay of the games strictly earlier
+        date = games.loc[games["gameid"] == gid, "date"].iloc[0]
+        earlier = games[games["date"] < date]
+        # the first game has nothing before it: every team is at the initial rating
+        prior = (
+            replay(earlier, CUTOFF, cfg)
+            if len(earlier)
+            else EloState(initial=1500.0, h=full.h)
+        )
+        rows = h[h["gameid"] == gid].set_index("team")
+        blue = games[(games["gameid"] == gid) & (games["side"] == "Blue")][
+            "teamname"
+        ].iloc[0]
+        red = games[(games["gameid"] == gid) & (games["side"] == "Red")][
+            "teamname"
+        ].iloc[0]
+        sb = rows.loc[blue, "rating_before"] + rows.loc[blue, "offset_before"]
+        sr = rows.loc[red, "rating_before"] + rows.loc[red, "offset_before"]
+        assert expected_score(sb, sr, full.h) == prior.p_blue(blue, red)
+
+
+@pytest.mark.parametrize("cfg", [BASE, ON], ids=["offsets_off", "offsets_on"])
+def test_history_is_zero_sum_per_game(cfg):
+    h = pd.DataFrame(replay(_hist_games(), CUTOFF, cfg, record=True).history)
+    h["d_team"] = h["rating_after"] - h["rating_before"]
+    h["d_off"] = h["offset_after"] - h["offset_before"]
+    sums = h.groupby("gameid")[["d_team"]].sum()
+    assert sums["d_team"].abs().max() < 1e-9
+    assert len(h) == 2 * h["gameid"].nunique()
+    if cfg is ON:
+        # offsets move only on the international games, and those moves cancel
+        assert h.groupby("gameid")["d_off"].sum().abs().max() < 1e-9
+
+
+def test_history_row_fields_and_opponent():
+    h = pd.DataFrame(replay(_hist_games(), CUTOFF, ON, record=True).history)
+    assert set(h.columns) == {
+        "gameid",
+        "date",
+        "team",
+        "opponent",
+        "rating_before",
+        "rating_after",
+        "offset_before",
+        "offset_after",
+    }
+    row = h[(h["gameid"] == "w1") & (h["team"] == "A")].iloc[0]
+    assert row["opponent"] == "C"
+    assert row["offset_after"] != row["offset_before"]  # LCK v LPL moved league ratings

@@ -68,6 +68,8 @@ class EloState:
     team: dict = field(default_factory=dict)
     league: dict = field(default_factory=dict)
     member: dict = field(default_factory=dict)
+    # None = not recording. A list collects one row per team per update (see _record).
+    history: list | None = None
 
     def key(self, code: str) -> str:
         return self.lineage.get(code, code)
@@ -80,6 +82,38 @@ class EloState:
     def p_blue(self, blue: str, red: str) -> float:
         return expected_score(self.strength(blue), self.strength(red), self.h)
 
+    def _snap(self, *teams: str) -> dict:
+        """(team rating, league offset) per team, as strength() reads them."""
+        return {
+            t: (
+                self.team.get(t, self.initial),
+                self.league.get(self.member.get(t), 0.0),
+            )
+            for t in teams
+        }
+
+    def _record(self, blue, red, gameid, date, before, after) -> None:
+        for team, opp in ((blue, red), (red, blue)):
+            (rb, ob), (ra, oa) = before[team], after[team]
+            self.history.append(
+                {
+                    "gameid": gameid,
+                    "date": date,
+                    "team": team,
+                    "opponent": opp,
+                    "rating_before": rb,
+                    "rating_after": ra,
+                    "offset_before": ob,
+                    "offset_after": oa,
+                }
+            )
+
+    def observe(self, blue: str, red: str, gameid=None, date=None) -> None:
+        """Record a game without updating anything (frozen ratings)."""
+        if self.history is not None:
+            snap = self._snap(blue, red)
+            self._record(blue, red, gameid, date, snap, snap)
+
     def update(
         self,
         blue: str,
@@ -88,9 +122,19 @@ class EloState:
         blue_won: bool,
         k: float,
         weight: float = 1.0,
+        gameid=None,
+        date=None,
     ) -> None:
         """Add one game. The team level always updates; the league level only for
-        an international game between two different league keys. Both zero-sum."""
+        an international game between two different league keys. Both zero-sum.
+        gameid and date are only used when history is recording."""
+        if self.history is None:
+            return self._apply(blue, red, league_code, blue_won, k, weight)
+        before = self._snap(blue, red)
+        self._apply(blue, red, league_code, blue_won, k, weight)
+        self._record(blue, red, gameid, date, before, self._snap(blue, red))
+
+    def _apply(self, blue, red, league_code, blue_won, k, weight) -> None:
         # Winner first, with h's sign flipped for a red win: bit-identical to the
         # pre-H update when h == 0.
         w, l, hw = (blue, red, self.h) if blue_won else (red, blue, -self.h)
@@ -132,7 +176,12 @@ def _check_games(games: pd.DataFrame) -> None:
         )
 
 
-def replay(games: pd.DataFrame, cutoff_date: pd.Timestamp, config: dict) -> EloState:
+def replay(
+    games: pd.DataFrame,
+    cutoff_date: pd.Timestamp,
+    config: dict,
+    record: bool = False,
+) -> EloState:
     """Replay games dated strictly before cutoff_date; return the rating state.
 
     config keys: k_factor, initial_rating, decay_half_life_days, decay_method,
@@ -141,6 +190,8 @@ def replay(games: pd.DataFrame, cutoff_date: pd.Timestamp, config: dict) -> EloS
     league_membership_skip, league_inherit) and international_leagues.
     H is computed once from games before cutoff_date and stays fixed. Decay
     weights are measured from cutoff_date and also scale k_league.
+    record=True fills state.history with one row per team per game (rating and league
+    offset before and after); it changes no rating.
     games needs gameid, date, teamname, side, result, plus league when offsets are on.
     """
     method = config["decay_method"]
@@ -169,6 +220,7 @@ def replay(games: pd.DataFrame, cutoff_date: pd.Timestamp, config: dict) -> EloS
         lineage=dict(config.get("league_lineage", {})),
         skip=frozenset(config.get("league_membership_skip", ())),
         inherit=dict(config.get("league_inherit", {})),
+        history=[] if record else None,
     )
     past = games[games["date"] < cutoff_date]
     cols = ["gameid", "date", "teamname", "result"]
@@ -191,6 +243,8 @@ def replay(games: pd.DataFrame, cutoff_date: pd.Timestamp, config: dict) -> EloS
             bool(g.result == 1),
             config["k_factor"],
             weight,
+            g.gameid,
+            g.date,
         )
     return state
 

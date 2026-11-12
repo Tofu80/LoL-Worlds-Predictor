@@ -1,10 +1,12 @@
 import dataclasses
 import datetime
 import math
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
+import yaml
 
 from worlds.backtest import (
     BacktestResult,
@@ -76,6 +78,7 @@ def test_backtest_result_fields():
         "odds_log_loss",
         "predictions",
         "n_prestart_wlds",
+        "history",
     }
 
 
@@ -343,3 +346,85 @@ def test_bootstrap_diff_reproducible_and_brackets_the_mean():
     c = np.array([0.0, 1.0, 0.0, 1.0])
     m, lo, hi = bootstrap_diff(c, np.zeros(4), 500, np.random.default_rng(2))
     assert lo < m < hi
+
+
+# ---- per-game rating history (record=True) ----
+
+
+def history_fixture(mode="in_tournament"):
+    games, cfg = fixture(mode=mode)
+    return games, {**cfg}
+
+
+def test_history_off_by_default():
+    games, cfg = fixture()
+    assert run(games, cfg).history is None
+
+
+@pytest.mark.parametrize("mode", ["in_tournament", "frozen"])
+def test_record_changes_no_output(mode):
+    games, cfg = fixture(mode=mode)
+    a = backtest_worlds(2025, games, cfg, CUTOFF)
+    b = backtest_worlds(2025, games, cfg, CUTOFF, record=True)
+    pd.testing.assert_frame_equal(a.predictions, b.predictions)
+    pd.testing.assert_frame_equal(a.calibration, b.calibration)
+    assert (a.log_loss, a.brier, a.n_games) == (b.log_loss, b.brier, b.n_games)
+
+
+def test_history_before_equals_the_rating_that_predicted_each_game():
+    games, cfg = fixture()
+    res = backtest_worlds(2025, games, cfg, CUTOFF, record=True)
+    h = res.history.set_index(["gameid", "team"])
+    for g in res.predictions.itertuples(index=False):
+        sb = h.loc[(g.gameid, g.blue), "rating_before"]
+        sr = h.loc[(g.gameid, g.red), "rating_before"]
+        assert expected_score(sb, sr, 0.0) == g.p_blue
+
+
+def test_history_zero_sum_per_game_in_a_backtest():
+    games, cfg = fixture()
+    h = backtest_worlds(2025, games, cfg, CUTOFF, record=True).history
+    d = (h["rating_after"] - h["rating_before"]).groupby(h["gameid"]).sum()
+    assert d.abs().max() < 1e-9
+
+
+def test_frozen_history_has_before_equal_after_in_tournament():
+    games, cfg = fixture(mode="frozen")
+    h = backtest_worlds(2025, games, cfg, CUTOFF, record=True).history
+    wlds = h[h["gameid"].isin(["g1", "g2"])]
+    assert len(wlds) == 4
+    assert (wlds["rating_before"] == wlds["rating_after"]).all()
+
+
+def test_history_in_tournament_after_feeds_the_next_games_before():
+    games, cfg = fixture()
+    h = backtest_worlds(2025, games, cfg, CUTOFF, record=True).history
+    a1 = h[(h["gameid"] == "g1") & (h["team"] == "A")].iloc[0]
+    a2 = h[(h["gameid"] == "g2") & (h["team"] == "A")].iloc[0]
+    assert a2["rating_before"] == a1["rating_after"]
+
+
+REAL = Path("data/processed/games.parquet")
+
+
+@pytest.mark.skipif(not REAL.exists(), reason="data/processed/games.parquet missing")
+def test_real_data_pooled_log_loss_is_0_6614_with_and_without_record():
+    games = pd.read_parquet(REAL)
+    config = {
+        **yaml.safe_load(Path("config/elo.yaml").read_text()),
+        **yaml.safe_load(Path("config/backtest.yaml").read_text()),
+        "international_leagues": yaml.safe_load(Path("config/ingest.yaml").read_text())[
+            "international_leagues"
+        ],
+    }
+    out = []
+    for record in (False, True):
+        preds = pd.concat(
+            backtest_worlds(
+                y, games, config, pd.Timestamp(t["start_date"]), record=record
+            ).predictions
+            for y, t in config["tournaments"].items()
+        )
+        out.append(log_loss(preds["p_blue"], preds["result"]))
+    assert round(out[0], 4) == 0.6614
+    assert out[0] == out[1]
