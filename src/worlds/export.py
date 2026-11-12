@@ -814,7 +814,10 @@ def git_meta(exp: dict, pred: dict) -> dict:
     """Code, config and frozen-prediction identity recorded in meta.json."""
     return {
         "commit": sim._git("rev-parse", "HEAD"),
-        "dirty_worktree": bool(sim._git("status", "--porcelain")),
+        # the output folder itself does not count: the previous export is not a code change
+        "dirty_worktree": bool(
+            sim._git("status", "--porcelain", "--", ".", f":(exclude){exp['out_dir']}")
+        ),
         "config_sha256": hashlib.sha256(
             b"".join(p.read_bytes() for p in [*sim.CONFIG_FILES, EXPORT_CONFIG_PATH])
         ).hexdigest(),
