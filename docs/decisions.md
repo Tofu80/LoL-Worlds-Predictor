@@ -70,7 +70,7 @@ Model choices (K, half-life, H, league offsets, `k_league`) were fixed by the 20
 the new pieces (RoFS side model, sigma = 50) were chosen without looking at any 2026 knockout result. No 2026 data after
 the cutoff was used, and this PR loads, prints and compares no knockout result. A later PR compares the prediction with
 what happened. Any re-run (new CSV, config or code) is a new version and does not replace this one; the output records
-the commit, a config hash, the CSV sha256, H, q, sigma and seed. Phu tags the merged commit `pred-2026-preQF`.
+the commit, a config hash, the CSV sha256, H, q, sigma and seed. The tag `pred-2026-preQF` points at 1efe4e7, the clean-tree commit (as in the D1-D3 entry); it was created 2026-11-12.
 **Known limit (open, leakage review):** the RoFS design (holder rule, reusing q for game 1, the league list and the 4 h gap) was
 decided 2026-11-09, after the QFs had started and were public, and the format sources were read 2026-11-10. The code cannot prove
 those choices were made blind to knockout side selections; it can only state that they were not tuned on any 2026 knockout result.
