@@ -47,7 +47,13 @@ now returns what `main()` prints (stdout byte-identical).
 **Caveats:** (a) A team's last history point is as of its own last game; league offsets keep moving with other teams'
 international games, so e.g. Gen.G's last point (2038.8) differs from its frozen strength at the cutoff (2015.8, LCK offset
 281.9 -> 258.9). (b) A team that plays two games with the same timestamp has its second row's `rating_before` include the first.
-(c) Match start times for 2026 knockouts come from `config/worlds_2026_results.yaml` (read only).
+(c) Match start times for 2026 knockouts come from `config/worlds_2026_results.yaml` (read only); a finished series with no start
+raises, and an unknown start is `played_before_commit: null`, not false. (d) History points dated before a Worlds start come from a
+replay whose H (blue win rate over the year before the start) and decay weights are fixed at that start, so they use some
+information dated after the point; the page and the legend say so. They keep the `walk_forward` label (a fourth label was not
+added without Phu). (e) k_league 64 was chosen on 2023-24, so those matches carry `k_league_in_sample: true`.
+(f) The frozen prediction and the sensitivity result are pinned by sha256 in `config/export.yaml`, and the score output must have
+been made from the results file now on disk; otherwise the export refuses to run.
 **Revisit if:** the 2023 knockout date or any stage date is corrected; the score output exists (re-run the export, no code change).
 
 ## 2026-11-12 — Sensitivity check: coin flip for QF game 1

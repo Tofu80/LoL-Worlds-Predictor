@@ -1,5 +1,6 @@
 import copy
 import datetime
+import hashlib
 import json
 import math
 import subprocess
@@ -336,6 +337,18 @@ def test_knockout_pending_without_score_output(frozen):
 def test_knockout_with_a_finished_series(frozen):
     pred, cfg_tag = frozen
     a, b = cfg_tag["knockout"]["quarterfinals"][0]
+    m_ = pred["meta"]
+    p = score.series_prob(
+        a,
+        b,
+        "quarterfinals",
+        pred["strengths"],
+        m_["H"],
+        m_["q"],
+        cfg_tag,
+        m_["sigma"],
+        41,
+    )
     doc = {
         "series": [
             {
@@ -344,7 +357,7 @@ def test_knockout_with_a_finished_series(frozen):
                 "b": b,
                 "winner": b,
                 "score": [3, 1],
-                "p_a_model": 0.37,
+                "p_a_model": p,
                 "a_won": 0,
             }
         ],
@@ -366,11 +379,17 @@ def test_knockout_with_a_finished_series(frozen):
     ko = export.knockout_matches(pred, cfg_tag, 41, doc, starts, COMMITTED)
     m = ko[0]
     assert m["result"] == {"status": "final", "winner": b, "score": [3, 1]}
-    assert m["log_loss"] == pytest.approx(-math.log(0.63))
+    assert m["log_loss"] == pytest.approx(-math.log(1 - p))
     assert [g["blue_won"] for g in m["games"]] == [0, 1, 0, 0]
     assert {g["provenance"] for g in m["games"]} == {"frozen"}
     assert m["played_before_commit"] is True
-    assert ko[1]["played_before_commit"] is None  # start not entered
+    assert ko[1]["played_before_commit"] is None  # not finished, start not entered
+    with pytest.raises(ValueError, match="no start_utc"):
+        export.knockout_matches(pred, cfg_tag, 41, doc, starts_none(), COMMITTED)
+    stale = copy.deepcopy(doc)
+    stale["series"][0]["p_a_model"] = p + 0.01
+    with pytest.raises(ValueError, match="stale score file"):
+        export.knockout_matches(pred, cfg_tag, 41, stale, starts, COMMITTED)
 
 
 @needs_real
@@ -512,6 +531,10 @@ ALLOWED_KEYS = {
     "teams",
     "title",
     "variant",
+    "as_of",
+    "k_league_in_sample",
+    "output_commit",
+    "prediction_sha256",
     "variants",
     "walk_forward",
     "walk_forward_replay",
@@ -628,12 +651,22 @@ def test_every_probability_has_a_provenance(built):
 
 @needs_real
 def test_frozen_numbers_equal_the_tagged_json(built):
-    """The saved file is committed after its tag's commit, so it is read from HEAD; its
-    meta.commit is the tag's commit (score.tag_config raised in the fixture otherwise)."""
-    files, *_ = built
+    """The saved file is committed after its tag's commit, so the comparison is with the
+    blob of the pinned output commit; its meta.commit is the tag's commit (score.tag_config
+    raised in the fixture otherwise)."""
+    files, _, args, _ = built
+    exp = args["exp"]
+    if subprocess.run(
+        ["git", "cat-file", "-e", exp["frozen_output_commit"]], cwd=ROOT, check=False
+    ).returncode:
+        pytest.skip("pinned output commit not in this clone")
     tagged = json.loads(
         subprocess.run(
-            ["git", "show", "HEAD:results/worlds_2026_preQF.json"],
+            [
+                "git",
+                "show",
+                f"{exp['frozen_output_commit']}:results/worlds_2026_preQF.json",
+            ],
             capture_output=True,
             check=True,
             cwd=ROOT,
@@ -646,6 +679,10 @@ def test_frozen_numbers_equal_the_tagged_json(built):
         for stage in ("semifinal", "final", "title"):
             assert t[stage] == tagged["odds"][t["team"]][stage]
         assert t["provenance"] == "frozen"
+    assert (
+        hashlib.sha256((ROOT / exp["frozen_prediction"]).read_bytes()).hexdigest()
+        == exp["frozen_prediction_sha256"]
+    )
     assert ov["frozen"]["H"] == tagged["meta"]["H"]
     assert ov["frozen"]["q"] == tagged["meta"]["q"]
     # path_to_title on the team pages is the same saved number
@@ -755,3 +792,47 @@ def test_git_meta_records_code_and_frozen_identity():
     assert len(m["commit"]) == 40 and isinstance(m["dirty_worktree"], bool)
     assert m["frozen"]["commit"] == pred["meta"]["commit"]
     assert m["frozen"]["committed_utc"] == "2026-11-10T11:52"
+
+
+def test_check_pinned_and_score_results(tmp_path):
+    f = tmp_path / "x.json"
+    f.write_text("{}")
+    sha = hashlib.sha256(b"{}").hexdigest()
+    export.check_pinned(f, sha, "file")
+    with pytest.raises(ValueError, match="pins"):
+        export.check_pinned(f, "0" * 64, "file")
+    export.check_score_results({"meta": {"results_sha256": sha}}, f)
+    with pytest.raises(ValueError, match="run worlds.score again"):
+        export.check_score_results({"meta": {"results_sha256": "0" * 64}}, f)
+
+
+def test_game1_probability_must_be_reproduced_by_the_snapshots():
+    res = backtest_worlds(2025, worlds_games(BASE), CONFIG, CUTOFF, record=True)
+    export.walk_forward_matches(res.predictions, res.history, 0.0, 4)  # fine
+    with pytest.raises(ValueError, match="ratings before game 1"):
+        export.walk_forward_matches(res.predictions, res.history, 10.0, 4)
+
+
+def test_legends_take_dates_from_the_files():
+    exp = {
+        "frozen_committed_utc": pd.Timestamp("2026-11-10T11:52:38"),
+        "frozen_tag": "T",
+        "frozen_output_commit": "abc1234",
+    }
+    pred = {"meta": {"prediction_cutoff_utc": "2026-11-02T00:00:00"}}
+    legend, der = export.legends(exp, pred, datetime.datetime(2027, 1, 5, 3, 0))
+    assert "before 2026-11-02" in legend["frozen"] and "2026-11-10" in legend["frozen"]
+    assert "abc1234" in legend["frozen"]
+    assert "2027-01-05" in der["computed_from_frozen_inputs"]
+    assert "not saved on 2026-11-10" in der["computed_from_frozen_inputs"]
+    assert "k_league was chosen on the 2023-24 results" in legend["walk_forward"]
+
+
+@needs_real
+def test_in_sample_flag_and_as_of(built):
+    files, *_ = built
+    for m in files["matches.json"]["matches"]:
+        if m["provenance"] == "walk_forward":
+            assert m["assumptions"]["k_league_in_sample"] == (m["year"] in (2023, 2024))
+    t = files["teams/gen-g.json"]
+    assert t["as_of"] == t["history"]["points"][-1][0]

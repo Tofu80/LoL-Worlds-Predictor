@@ -7,9 +7,12 @@ decimals: {probability: 4, rating: 1}
 
 # Frozen pre-QF prediction (never re-run) and the files derived from it.
 frozen_prediction: results/worlds_2026_preQF.json
+frozen_prediction_sha256: 39ea9b16b706debdd11026e7022527367e0146b94610481927b09cd191668c42   # blob committed in 08e0ebe (2026-11-10, two seconds after the tagged 1efe4e7); the export refuses any other bytes
+frozen_output_commit: 08e0ebe
 frozen_tag: pred-2026-preQF
 frozen_committed_utc: 2026-11-10T11:52:38   # commit 1efe4e7 (2026-11-10 22:52 +11:00); played_before_commit compares a series start to this
 sensitivity: results/worlds_2026_preQF_sens_game1coin.json
+sensitivity_sha256: d4deb0eb4002a4401e58fbdee717b2f48b985a2611b391dd120a063a8ee4787c       # blob committed in 8b4875e
 score_glob: results/worlds_2026_preQF_score*.json   # newest complete version wins, else newest partial
 results_file: config/worlds_2026_results.yaml        # read only, for series start times
 

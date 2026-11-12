@@ -35,29 +35,42 @@ EXPORT_CONFIG_PATH = Path("config/export.yaml")
 SCORE_CONFIG_PATH = Path("config/score.yaml")
 PROVENANCE = ("frozen", "walk_forward", "sensitivity")
 DERIVATION = ("saved", "computed_from_frozen_inputs", "walk_forward_replay")
-LEGEND = {
-    "frozen": (
-        "Frozen: computed from games before 2026-11-02 only, ratings fixed at that cutoff, "
-        "committed 2026-11-10 (tag pred-2026-preQF) after the quarterfinals had started, and "
-        "never re-run."
-    ),
-    "walk_forward": (
-        "Walk-forward: computed afterwards, each game using only games dated before it and "
-        "adding results game by game. Not a live prediction."
-    ),
-    "sensitivity": (
-        "Sensitivity: the frozen run repeated on 2026-11-12 with one assumption changed "
-        "(who holds the side choice in quarterfinal game 1). A what-if."
-    ),
-}
-DERIVATION_TEXT = {
-    "saved": "Saved in the frozen prediction file on 2026-11-10.",
-    "computed_from_frozen_inputs": (
-        "Computed on 2026-11-13 from the frozen inputs (same ratings, H, q and sigma) by "
-        "score.py; not saved on 2026-11-10."
-    ),
-    "walk_forward_replay": "Replayed after the event, using only earlier games.",
-}
+# k_league is chosen on these Worlds (backtest.compare's grid): their matches are in-sample for it.
+K_LEAGUE_FIT_YEARS = (2023, 2024)
+
+
+def legends(exp: dict, pred: dict, generated: datetime) -> tuple[dict, dict]:
+    """Provenance and derivation wording, with every date taken from the files."""
+    cutoff = pd.Timestamp(pred["meta"]["prediction_cutoff_utc"]).date()
+    committed = pd.Timestamp(exp["frozen_committed_utc"]).date()
+    legend = {
+        "frozen": (
+            f"Frozen: computed from games before {cutoff} only, ratings fixed at that cutoff, "
+            f"committed {committed} (code at tag {exp['frozen_tag']}, output in "
+            f"{exp['frozen_output_commit']}) after the quarterfinals had started, and never re-run."
+        ),
+        "walk_forward": (
+            "Walk-forward: computed afterwards. Each game is predicted from games dated before "
+            "it, with results added game by game; H and the decay weights are fixed at the "
+            "start of each Worlds, and k_league was chosen on the 2023-24 results. Not a "
+            "live prediction."
+        ),
+        "sensitivity": (
+            "Sensitivity: the frozen run repeated after the fact with one assumption changed "
+            "(who holds the side choice in quarterfinal game 1). A what-if."
+        ),
+    }
+    derivation = {
+        "saved": f"Saved in the frozen prediction file on {committed}.",
+        "computed_from_frozen_inputs": (
+            f"Computed at export time ({generated.date()}) from the frozen inputs (same "
+            f"ratings, H, q and sigma) by score.py; not saved on {committed}."
+        ),
+        "walk_forward_replay": "Replayed after the event, using only earlier games.",
+    }
+    return legend, derivation
+
+
 VARIANTS = {
     "current": "Original Elo (no side bonus, no league offsets)",
     "+H": "Elo + blue-side bonus",
@@ -210,6 +223,13 @@ def walk_forward_matches(
             )
             for t in (s["a"], s["b"])
         }
+        # The snapshots must reproduce the probability the backtest made for game 1; a
+        # same-timestamp game updating ratings first would break this.
+        again = elo.expected_score(strength[s["a"]], strength[s["b"]], h)
+        if abs(again - g1.p_blue) > 1e-12:
+            raise ValueError(
+                f"{g1.gameid}: ratings before game 1 give {again}, backtest predicted {g1.p_blue}"
+            )
         win = winner_of(s)
         # A = the blue team of game 1; a Bo1's probability is that game's own.
         p_a = (
@@ -349,6 +369,15 @@ def knockout_matches(
                 },
             }
         if r:
+            if start is None:
+                raise ValueError(
+                    f"{sid} has a result but no start_utc in the results file"
+                )
+            if abs(entry["p_a"] - r["p_a_model"]) > 1e-9:
+                raise ValueError(
+                    f"{sid}: recomputed p {entry['p_a']} differs from the score file's "
+                    f"{r['p_a_model']} (stale score file, or different quadrature nodes)"
+                )
             entry["result"] = {
                 "status": "final",
                 "winner": r["winner"],
@@ -627,8 +656,9 @@ def overview_json(
 # ---------- build ----------
 
 
-def integrity(games: pd.DataFrame, cfg26: dict, pred: dict) -> None:
-    """Raise unless the data and replay reproduce the frozen prediction's inputs."""
+def integrity(games: pd.DataFrame, cfg26: dict, pred: dict) -> elo.EloState:
+    """Raise unless the data and replay reproduce the frozen prediction's inputs; returns
+    the replayed state."""
     if sim.games_sha256(games, cfg26) != pred["meta"]["data_sha256"]:
         raise ValueError(
             "games before the cutoff no longer hash to the frozen prediction's data_sha256: "
@@ -643,6 +673,38 @@ def integrity(games: pd.DataFrame, cfg26: dict, pred: dict) -> None:
     }
     if bad:
         raise ValueError(f"replayed 2026 strengths differ from the frozen ones: {bad}")
+    return state
+
+
+def check_same_ratings(history: pd.DataFrame, state: elo.EloState, teams) -> None:
+    """The exported 2026 history (backtest path) must end on the team ratings of the
+    frozen path (simulate.rating_state), for every team given."""
+    bad = {}
+    for t in teams:
+        last = history[history["team"] == t].iloc[-1]["rating_after"]
+        if abs(last - state.team[t]) > 1e-9:
+            bad[t] = (last, state.team[t])
+    if bad:
+        raise ValueError(f"exported 2026 history ends off the frozen ratings: {bad}")
+
+
+def check_pinned(path: Path, sha256: str, what: str) -> None:
+    """Raise unless the file's bytes are the ones pinned in config/export.yaml."""
+    got = sim._sha256(Path(path))
+    if got != sha256:
+        raise ValueError(
+            f"{what} {path} hashes to {got}, config/export.yaml pins {sha256}"
+        )
+
+
+def check_score_results(doc: dict, results_path: Path) -> None:
+    """The score output must have been made from the results file now on disk."""
+    got = sim._sha256(Path(results_path))
+    if doc["meta"]["results_sha256"] != got:
+        raise ValueError(
+            f"score output used a results file with sha256 {doc['meta']['results_sha256']}, "
+            f"{results_path} is now {got}: run worlds.score again"
+        )
 
 
 def build_all(
@@ -662,7 +724,7 @@ def build_all(
     """{relative path under out_dir: JSON-able object}. games is cut at the 2026
     prediction_cutoff first, so no knockout row is ever read."""
     games = sim._before_cutoff(games, cfg26)
-    integrity(games, cfg26, pred)
+    state = integrity(games, cfg26, pred)
 
     k = pred["meta"]["model"]["k_league"]
     if not (
@@ -700,16 +762,20 @@ def build_all(
             label_stages(ms, pd.Timestamp(cfg26["swiss_start"]))
             rec = swiss_records(ms)
             want = {t: list(r) for t, r in cfg26["swiss_results"].items()}
-            check_swiss(rec, year)
+            check_swiss(rec, year, cfg26["swiss"]["total_teams"])
             if any(rec[t] != r for t, r in want.items()):
                 raise ValueError("2026 Swiss records differ from worlds_2026.yaml")
         else:
             st = exp["stages"][year]
             label_stages(ms, st["swiss_start"], st["knockout_start"])
             rec = swiss_records(ms)
-            check_swiss(rec, year)
+            check_swiss(rec, year, cfg26["swiss"]["total_teams"])
             check_knockout(ms, rec, year)
         swiss_by_year[year] = rec
+        for m in ms:
+            m["assumptions"]["k_league_in_sample"] = year in K_LEAGUE_FIT_YEARS
+        if year == 2026:
+            check_same_ratings(res.history, state, cfg26["swiss_results"])
         for n, s in enumerate(ms, 1):
             s["id"], s["year"] = f"{year}-{n:03d}", year
         matches += ms
@@ -755,12 +821,18 @@ def build_all(
             "slug": slugs[t],
             "league": league,
             "league_offset": offset,
+            "as_of": points[t][-1][
+                0
+            ],  # league and offset are as of the team's last game
             "worlds": worlds,
             "history": {
                 "provenance": "walk_forward",
                 "note": (
                     "Strength = team rating + league offset, one point per game. Each "
-                    "segment is the replay the model ran going into that Worlds."
+                    "segment is the replay the model ran going into that Worlds. Points dated "
+                    "before a Worlds start come from a replay whose H (blue win rate over the "
+                    "year before the start) and decay weights are fixed at that start, so they "
+                    "use some information dated after the point."
                 ),
                 "columns": HISTORY_COLUMNS,
                 "points": points[t],
@@ -797,13 +869,15 @@ def build_all(
         overview_json(pred, sens, swiss_by_year[2026], cfg_tag, doc, doc_name, exp),
         None,
     )
+    generated = datetime.now(timezone.utc)
+    legend, derivation_text = legends(exp, pred, generated)
     files["meta.json"] = {
         "schema_version": exp["schema_version"],
-        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated_at": generated.isoformat(timespec="seconds"),
         "data_sha256": sim.games_sha256(games, cfg26),
         "seasons": exp["seasons"],
-        "legend": LEGEND,
-        "derivation_text": DERIVATION_TEXT,
+        "legend": legend,
+        "derivation_text": derivation_text,
         "data_source": "Oracle's Elixir (oracleselixir.com)",
         **(meta_extra or {}),
     }
@@ -825,6 +899,8 @@ def git_meta(exp: dict, pred: dict) -> dict:
             "tag": exp["frozen_tag"],
             "commit": pred["meta"]["commit"],
             "committed_utc": iso(exp["frozen_committed_utc"]),
+            "output_commit": exp["frozen_output_commit"],
+            "prediction_sha256": exp["frozen_prediction_sha256"],
         },
     }
 
@@ -863,12 +939,22 @@ def main() -> None:
         sys.exit(f"{sim.GAMES_PATH} not found: run python -m worlds.ingest first")
     exp = load_export_config()
     sc = yaml.safe_load(SCORE_CONFIG_PATH.read_text())
+    check_pinned(
+        Path(exp["frozen_prediction"]),
+        exp["frozen_prediction_sha256"],
+        "frozen prediction",
+    )
+    check_pinned(
+        Path(exp["sensitivity"]), exp["sensitivity_sha256"], "sensitivity result"
+    )
     pred = score.load_prediction(Path(exp["frozen_prediction"]))
     sens = json.loads(Path(exp["sensitivity"]).read_text())
     cfg_tag = score.tag_config(exp["frozen_tag"], pred)
     cfg26 = sim.load_config()
     doc_path = pick_score_file(exp["score_glob"])
     doc = json.loads(doc_path.read_text()) if doc_path else None
+    if doc:
+        check_score_results(doc, Path(exp["results_file"]))
     files = build_all(
         pd.read_parquet(sim.GAMES_PATH),
         exp,
