@@ -2,8 +2,9 @@
 
 A variant is a small override file merged over the config read from tag pred-2026-preQF. Same
 pre-cutoff data, ratings, H, q, sigma, n_runs and seed as the primary run; only the overridden
-keys differ. The primary prediction stays the one reported and is never written. No knockout
-result is read: the data is cut at prediction_cutoff right after loading.
+keys differ. The primary prediction stays the one reported and is never written. Post-cutoff
+rows are loaded and format-checked by load_games, then cut at prediction_cutoff before any use;
+none is printed.
 
     python -m worlds.sensitivity config/sensitivity/game1_coin_flip.yaml
 """
@@ -62,13 +63,16 @@ def check_data(games: pd.DataFrame, pred: dict, cfg: dict) -> None:
 def check_reproduces(pred: dict, result: dict) -> None:
     """Raise unless re-running the primary from the data gives the saved strengths, H, q, odds."""
     m = pred["meta"]
-    bad = [
+    if m.get("dirty_worktree"):
+        raise ValueError("the primary was generated from a dirty worktree")
+    table = result["table"].round(4)
+    bad = [] if set(pred["odds"]) == set(table.index) else ["different teams"]
+    bad += [
         f"strength {t}"
         for t, s in pred["strengths"].items()
         if abs(result["strengths"][t] - s) > 1e-9
     ]
     bad += [x for x in ("H", "q") if abs(result[x.lower()] - m[x]) > 1e-9]
-    table = result["table"].round(4)
     bad += [
         f"{t} {s}"
         for t, row in pred["odds"].items()
@@ -80,7 +84,10 @@ def check_reproduces(pred: dict, result: dict) -> None:
 
 
 def write_new(out_dir: Path, stem: str, doc: dict, md: str) -> list[Path]:
-    """Write <stem>.json and <stem>.md; raises FileExistsError if either exists."""
+    """Write <stem>.json and <stem>.md; raises FileExistsError if either exists and
+    ValueError for a stem that is a path or the primary's own name."""
+    if Path(stem).name != stem or stem in ("", ".", "..") or stem == simulate.OUT_NAME:
+        raise ValueError(f"bad out_stem {stem!r}")
     paths = [Path(out_dir) / f"{stem}.json", Path(out_dir) / f"{stem}.md"]
     existing = [p for p in paths if p.exists()]
     if existing:

@@ -1,4 +1,4 @@
-# Pre-registered sensitivity check (docs/decisions.md, 2026-11-12): the only change from the primary run is
+# Sensitivity check, committed before the run (docs/decisions.md, 2026-11-12): the only change from the primary run is
 # who holds the right of first selection in QF game 1. Merged over the config read from tag pred-2026-preQF
 # by worlds.sensitivity; NOT part of simulate.CONFIG_FILES, so the primary config hash is unchanged.
 variant: game1_coin_flip

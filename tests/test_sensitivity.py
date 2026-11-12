@@ -1,5 +1,4 @@
 import copy
-import hashlib
 from pathlib import Path
 
 import numpy as np
@@ -151,14 +150,27 @@ def test_writer_refuses_when_only_the_md_exists(tmp_path):
     assert not (tmp_path / "stem.json").exists()
 
 
-def test_writing_to_tmp_leaves_primary_files_untouched(tmp_path):
-    primary = [
-        Path("results/worlds_2026_preQF.json"),
-        Path("results/worlds_2026_preQF.md"),
-    ]
-    before = [hashlib.sha256(p.read_bytes()).hexdigest() for p in primary]
-    sensitivity.write_new(tmp_path, "worlds_2026_preQF_sens_game1coin", {}, "")
-    assert before == [hashlib.sha256(p.read_bytes()).hexdigest() for p in primary]
+@pytest.mark.parametrize("stem", ["../x", "a/b", "..", "", "worlds_2026_preQF"])
+def test_writer_refuses_path_stems_and_the_primary_name(tmp_path, stem):
+    with pytest.raises(ValueError, match="out_stem"):
+        sensitivity.write_new(tmp_path, stem, {}, "")
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_check_reproduces_raises_on_dirty_primary_and_on_extra_teams():
+    table = _zero_table()
+    odds = {t: {s: 0.0 for s in table.columns} for t in TEAMS}
+    res = {"strengths": STRENGTHS, "h": H, "q": Q, "table": table}
+    pred = {"strengths": STRENGTHS, "meta": {"H": H, "q": Q}, "odds": odds}
+    sensitivity.check_reproduces(pred, res)  # baseline passes
+    with pytest.raises(ValueError, match="dirty"):
+        sensitivity.check_reproduces(
+            {**pred, "meta": {"H": H, "q": Q, "dirty_worktree": True}}, res
+        )
+    with pytest.raises(ValueError, match="reproduce"):
+        sensitivity.check_reproduces(
+            {**pred, "odds": dict(list(odds.items())[:-1])}, res
+        )
 
 
 def test_render_md_shows_both_runs_differences_and_max_title_change():

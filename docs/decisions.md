@@ -12,16 +12,18 @@ Each entry: what was decided, what else was considered, the evidence, and when t
 **Revisit if:**
 -->
 
-## 2026-11-12 — Pre-registered sensitivity check: coin flip for QF game 1
+## 2026-11-12 — Sensitivity check: coin flip for QF game 1
 **Decision:** `python -m worlds.sensitivity config/sensitivity/game1_coin_flip.yaml` re-runs the frozen pre-QF prediction with
-`rofs_game1.quarterfinals = coin_flip` (primary: `higher_seed`). The check was pre-registered (the override file and code were committed
-before the run) and run on 2026-11-12, before the final. It varies only who holds the right of first selection in QF game 1; SF and
+`rofs_game1.quarterfinals = coin_flip` (primary: `higher_seed`). The check was named as a possible sensitivity check in the 2026-11-10 integrity note; the override file and code were
+committed before the run (64171d4, then the run), and it ran on 2026-11-12, before the final. Caveat: the variant was specified
+after the QF and SF results were public, so git ordering shows it was committed before the run, not that it was chosen blind. It varies only who holds the right of first selection in QF game 1; SF and
 final were already coin flips, and TES-IG (equal records) is a coin flip in both. Everything else is identical: pre-cutoff data
 (`prediction_cutoff` 2026-11-02T00:00 UTC), saved strengths, H, q, sigma 50, n_runs 10000, seed 42. The override is merged over the config
 read from tag `pred-2026-preQF` and is not in `simulate.CONFIG_FILES`, so the primary config hash `fe2d60db…` is unchanged.
 **Data:** the Nov 12 CSV's pre-cutoff rows hash to `3281b29a…`, equal to the primary's `data_sha256` (the run exits otherwise), and the
-primary's odds were reproduced from the data before the variant ran. No knockout result was read.
-**Result:** max |change| in title odds is 0.002 (Bilibili Gaming -0.002, Dplus Kia +0.002); max |change| in P(SF) is 0.005. QF1 Dplus Kia
+primary's odds were reproduced from the data before the variant ran. The run does not use or print any knockout result, but `load_games` loads and format-checks the whole CSV (post-cutoff rows included) before the cut.
+Only the 2026 CSV's sha256 is recorded (`csv_snapshot`); the 2023-25 files are covered by the data hash only.
+**Result:** max |change| in title odds is 0.002 (Bilibili Gaming -0.0020, Dplus Kia +0.0015; 3 dp in the .md); max |change| in P(SF) is 0.005. QF1 Dplus Kia
 v Bilibili Gaming moves 0.369 -> 0.375, QF2 0.142 -> 0.139, QF3 and QF4 move by 0.001 or less. **Primary prediction unchanged**: it
 stays the one reported and scored; the variant never replaces it. Output: `results/worlds_2026_preQF_sens_game1coin.{json,md}`.
 **Open (Phu chose):** scoring the variant is a follow-up PR (`worlds.score --prediction <file>`), not built here.
