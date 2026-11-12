@@ -68,8 +68,8 @@ series, which is too few to judge the model either way.
   (`fe2d60db…`), the pre-cutoff data hash (`3281b29a…`), H, q, sigma and seed. The scorer refuses to run unless
   the tag's commit and config hash match the saved prediction and a re-run of the saved simulation reproduces
   the saved odds.
-- **Review:** a read-only `leakage-reviewer` agent audits every pull request since PR #3. Each finding is fixed with a test or
-  listed in the PR description.
+- **Review:** a read-only `leakage-reviewer` agent is required before every pull request (CLAUDE.md); each finding
+  is fixed with a test or listed in the PR.
 - **Pre-registered sensitivity check:** re-running with a coin flip for who picks side in quarterfinal game 1
   changes no title odds by more than 0.002
   ([results](results/worlds_2026_preQF_sens_game1coin.md)). It was committed before it ran, but it was specified
@@ -98,7 +98,7 @@ pip install -e ".[dev]"
 pytest
 python -m worlds.ingest        # first: writes data/processed/games.parquet
 python -m worlds.backtest      # Worlds 2023–2025: current vs +H vs +H+league vs blue-only vs 0.5, k_league grid, bootstrap CI, calibration by matchup class
-python -m worlds.simulate      # current title odds
+python -m worlds.simulate      # regenerates the frozen pre-QF prediction (refuses to overwrite)
 python -m worlds.sensitivity config/sensitivity/game1_coin_flip.yaml  # pre-QF robustness check (clean tree; refuses to overwrite)
 python -m worlds.score         # score the frozen pre-QF prediction vs real results (--partial if the final isn't in)
 ```

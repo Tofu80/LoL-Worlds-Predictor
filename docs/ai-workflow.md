@@ -75,8 +75,8 @@ The most useful part of this file. Write entries as they happen.
 **What Claude did:** Claude Code wrote the `config/worlds_2026.yaml` placeholder (c56185d, Oct 22) with
 `bo1_rounds: [1, 2, 3]` and `bo3_rounds: [4, 5]` from general knowledge. The file had a "verify against the
 official announcement" warning at the top, but the values looked like facts.
-**How it was caught:** Phu spotted it on Oct 24 in a planning chat while looking up the real 2026 format (project
-handover, not recorded in the repo). The real rule: a Bo3 whenever a team can qualify or be eliminated (a 2-x or
+**How it was caught:** Desktop Claude flagged the config as wrong on Oct 24 while looking up the real 2026 format
+in a planning chat (project handover, not recorded in the repo). The real rule: a Bo3 whenever a team can qualify or be eliminated (a 2-x or
 x-2 record), Bo1 otherwise.
 **Fix and new rule:** Fixed Nov 10 in PR #14 (d23db71, `bo3_when_record_has: 2`). It never reached any output,
 because the 2026 prediction is knockout-only. The fix was checked against two news pages
@@ -94,8 +94,8 @@ decisions.md (2026-10-24, ingest validation): raise on a bad game, never drop ro
 **What Claude did:** Claude Code (Sonnet), PR #5. The reviewer returned 7 findings (1 High). One Low was neither
 fixed nor listed in the PR description: an empty or malformed alias file raised `TypeError` or `KeyError` instead
 of a clear `ValueError`.
-**How it was caught:** Phu's review of the PR (the identity of the skipped finding comes from the planning chat,
-not the repo).
+**How it was caught:** Desktop Claude spotted it when reviewing the PR #5 results and token report with Phu
+(planning chat, not the repo).
 **Fix and new rule:** Fixed in PR #6 (6c7f7a2). CLAUDE.md: every finding is either fixed with a test or listed in
 the PR description as an open decision.
 
