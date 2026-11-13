@@ -50,7 +50,7 @@ try {
       "div",
       { class: "wrap" },
       h("h1", {}, "Worlds 2026 title odds"),
-      h("p", { class: "lede" }, `Computed from games before ${dateLabel(ov.frozen.prediction_cutoff_utc)}, before the quarterfinals were played.`),
+      h("p", { class: "lede" }, `Computed using only games before ${dateLabel(ov.frozen.prediction_cutoff_utc)}, the quarterfinal cutoff.`),
       h(
         "div",
         { class: "head" },
@@ -84,7 +84,7 @@ try {
         h(
           "figcaption",
           {},
-          "Frozen probabilities from the pre-quarterfinal run (10,000 simulations, rating noise 50). The what-if column repeats the run with the side choice in quarterfinal game 1 as a coin flip: no team's title chance moves by more than " +
+          `Frozen probabilities (${ov.frozen.n_runs.toLocaleString("en-GB")} simulations, rating noise ${ov.frozen.sigma}). The what-if column repeats the run with the side choice in quarterfinal game 1 as a coin flip: no team's title chance moves by more than ` +
             `${(ov.sensitivity.max_abs_title_change * 100).toFixed(1)} points.`,
         ),
       ),
@@ -111,6 +111,8 @@ try {
             "section",
             {},
             h("h2", {}, "How the frozen prediction did"),
+            h("p", { class: "head" }, badge("frozen", meta, ov.score.derivation)),
+            derivationNote(ov.score.derivation, meta),
             h("p", { class: "small" }, `Scored on ${ov.score.n.series} series and ${ov.score.n.games} games. That is far too little to say anything about model quality.`),
             dataTable({
               caption: "Series log loss and Brier score",

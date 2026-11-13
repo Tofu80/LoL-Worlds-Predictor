@@ -1,6 +1,6 @@
 import { load, slugs } from "./data.mjs";
 import { h, mount } from "./dom.mjs";
-import { badge } from "./prov.mjs";
+import { badge, listNotes } from "./prov.mjs";
 import { failure, shell } from "./shell.mjs";
 import { dataTable, FORMAT_LABEL, matchHref, scoreText, STAGE_LABEL } from "./ui.mjs";
 import { dateLabel, pct } from "./util.mjs";
@@ -40,7 +40,7 @@ try {
           FORMAT_LABEL[m.format],
           { node: m.p_a === null ? "" : pct(m.p_a), num: true },
           m.result.status === "final" ? `${m.result.winner} ${scoreText(m.result.score)}` : { node: "Pending", cls: "pending" },
-          badge(m.provenance, meta),
+          badge(m.provenance, meta, m.derivation),
           h("a", { href: matchHref(m.id) }, "Details"),
         ]),
       }),
@@ -55,7 +55,7 @@ try {
       "div",
       { class: "wrap" },
       h("h1", {}, "Matches"),
-      h("p", { class: "lede" }, "Every series at Worlds 2023–2026 with the probability the model gave before it was played. Team 1 is the team on blue side in game 1 (or the first-listed team in the 2026 knockout)."),
+      h("p", { class: "lede" }, "Every series at Worlds 2023–2026 with the probability computed from games before it. The badge says when each number was computed: most were replayed after the event. Team 1 is the team on blue side in game 1 (or the first-listed team in the 2026 knockout)."),
       h(
         "div",
         { class: "filters", role: "search" },
@@ -65,6 +65,7 @@ try {
       ),
       count,
       holder,
+      listNotes(ms, meta),
     ),
   );
   render();

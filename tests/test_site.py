@@ -83,3 +83,25 @@ def test_data_files_the_pages_fetch_are_exported():
     for f in JS:
         fetched |= set(re.findall(r'load\("([^"$]+\.json)"\)', f.read_text()))
     assert fetched <= {p.relative_to(data).as_posix() for p in data.rglob("*.json")}
+
+
+def test_dates_and_run_settings_are_read_from_the_data_not_typed_in():
+    for f in JS:
+        if f.name.endswith(".test.mjs"):
+            continue
+        text = f.read_text()
+        assert (
+            "10 Nov" not in text
+            and "10,000" not in text
+            and "rating noise 50" not in text
+        ), f.name
+
+
+def test_match_and_game_badges_pass_their_derivation():
+    """A frozen probability computed by score.py must say so in its badge tooltip."""
+    for f in ("matches.mjs", "team.mjs", "match.mjs"):
+        text = (SITE / "js" / f).read_text()
+        calls = re.findall(r"badge\((?:m|g)\.provenance, meta[^)]*\)", text)
+        assert calls, f
+        assert all("derivation" in c for c in calls), (f, calls)
+    assert "computed_from_frozen_inputs" in (SITE / "js/prov.mjs").read_text()

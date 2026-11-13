@@ -3,7 +3,7 @@ import { h, mount, params } from "./dom.mjs";
 import { badge, derivationNote } from "./prov.mjs";
 import { failure, NotFound, shell } from "./shell.mjs";
 import { dataTable, FORMAT_LABEL, scoreText, STAGE_LABEL, teamLink } from "./ui.mjs";
-import { dateTimeLabel, pct } from "./util.mjs";
+import { dateLabel, dateTimeLabel, pct } from "./util.mjs";
 
 const meta = await shell("matches.html", "Match");
 const main = document.getElementById("main");
@@ -36,9 +36,9 @@ try {
 
   const when =
     m.played_before_commit === true
-      ? "Played before the frozen prediction was committed (10 Nov 2026)."
+      ? `Played before the frozen prediction was committed (${dateLabel(meta.frozen.committed_utc)}).`
       : m.played_before_commit === false
-        ? "Played after the frozen prediction was committed (10 Nov 2026)."
+        ? `Played after the frozen prediction was committed (${dateLabel(meta.frozen.committed_utc)}).`
         : m.provenance === "frozen"
           ? "Start time not entered yet, so it is not known whether this was played before the commit."
           : null;
@@ -48,7 +48,7 @@ try {
     g.blue,
     g.red,
     { node: pct(g.p_blue), num: true },
-    badge(g.provenance, meta),
+    badge(g.provenance, meta, g.derivation),
     g.blue_won ? `${g.blue} won` : `${g.red} won`,
     { node: g.log_loss.toFixed(3), num: true },
   ]);
@@ -86,7 +86,7 @@ try {
               h("span", { class: "a", style: `width:${(m.p_a * 100).toFixed(2)}%` }),
             ),
             h("div", { class: "problabels", "aria-hidden": "true" }, h("span", {}, `${a} ${pct(m.p_a)}`), h("span", { class: "b" }, `${b} ${pct(1 - m.p_a)}`)),
-            h("p", { class: "head" }, badge(m.provenance, meta), h("span", { class: "small" }, "chance of winning the series")),
+            h("p", { class: "head" }, badge(m.provenance, meta, m.derivation), h("span", { class: "small" }, "chance of winning the series")),
             derivationNote(m.derivation, meta),
             when ? h("p", { class: "note" }, when) : null,
           )

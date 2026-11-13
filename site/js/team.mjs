@@ -1,7 +1,7 @@
 import { eloChart } from "./charts.mjs";
 import { load, slugs } from "./data.mjs";
 import { h, mount, params } from "./dom.mjs";
-import { badge, PROV } from "./prov.mjs";
+import { badge, listNotes, PROV } from "./prov.mjs";
 import { failure, NotFound, shell } from "./shell.mjs";
 import { dataTable, matchHref, scoreText, STAGE_LABEL, teamLink } from "./ui.mjs";
 import { dateLabel, pct } from "./util.mjs";
@@ -43,7 +43,7 @@ try {
       opp ? teamLink(opp, slugOf) : "To be decided",
       done ? { node: `${m.result.winner === team.name ? "Won" : "Lost"} ${scoreText(m.result.winner === team.name ? m.result.score : [...m.result.score].reverse())}`, cls: m.result.winner === team.name ? "won" : "" } : { node: "Pending", cls: "pending" },
       { node: p === null ? "" : pct(p), num: true },
-      badge(m.provenance, meta),
+      badge(m.provenance, meta, m.derivation),
       h("a", { href: matchHref(m.id) }, "Details"),
     ];
   });
@@ -91,7 +91,7 @@ try {
             "section",
             {},
             h("h2", {}, "Path to the 2026 title"),
-            h("p", { class: "head" }, badge("frozen", meta), h("span", { class: "small" }, "from the pre-quarterfinal run")),
+            h("p", { class: "head" }, badge("frozen", meta), h("span", { class: "small" }, "computed from games before the quarterfinal cutoff, committed after the quarterfinals had started")),
             dataTable({
               caption: "Frozen chance of reaching each round in 2026",
               head: [{ text: "Semifinal", num: true }, { text: "Final", num: true }, { text: "Title", num: true }],
@@ -112,6 +112,7 @@ try {
         head: ["Date", "Stage", "Opponent", "Result", { text: "Chance", num: true }, "Provenance", ""],
         rows,
       }),
+      listNotes(mine, meta),
     ),
   );
 } catch (e) {
