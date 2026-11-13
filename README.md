@@ -101,7 +101,13 @@ python -m worlds.backtest      # Worlds 2023–2025: current vs +H vs +H+league 
 python -m worlds.simulate      # regenerates the frozen pre-QF prediction (refuses to overwrite)
 python -m worlds.sensitivity config/sensitivity/game1_coin_flip.yaml  # pre-QF robustness check (clean tree; refuses to overwrite)
 python -m worlds.score         # score the frozen pre-QF prediction vs real results (--partial if the final isn't in)
+python -m worlds.export        # team-level JSON for the site, into site/data/ (re-run after worlds.score; never simulates)
+node --test site/js/util.test.mjs   # the site's pure maths; no npm, no dependencies
+python -m http.server -d site       # preview the site at http://localhost:8000
 ```
+
+The site (`site/`) is static HTML, CSS and JavaScript with hand-drawn SVG charts: no build step, no libraries, no CDN.
+A GitHub Actions workflow publishes `site/` to GitHub Pages (Settings → Pages → Source: GitHub Actions).
 
 ## Data and credits
 
