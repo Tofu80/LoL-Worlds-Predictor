@@ -12,6 +12,25 @@ Each entry: what was decided, what else was considered, the evidence, and when t
 **Revisit if:**
 -->
 
+## 2026-11-13 — Site visual direction and structure (Phu)
+**Decision:** The static site (`site/`, deployed by `.github/workflows/pages.yml`) uses the "Forecast ledger" direction (Phu picked it
+from three options): a cool paper ground (light and dark by `prefers-color-scheme`), system fonts (no font downloads), and one rule
+that carries the design: provenance is drawn the same way everywhere (badge swatch, chart line, bar), so a probability cannot be
+mistaken for a live call. `frozen` = solid, `walk_forward` = outline, `replay` = dashed, `sensitivity` (what-if) = hatched.
+Pages: Overview (frozen odds table with what-if column and result, bracket), Teams and Team (strength chart, Worlds table, frozen path,
+match history), Matches and Match (probability with badge and derivation, assumptions, result, per-game log loss), Model (backtest
+table, calibration chart, badge legend). The Teams and Matches index pages were added to the four page types in the brief because the
+other pages need something to navigate from. The final's date (14 Nov 2026 UTC) is a constant in `site/js/data.mjs`; until a score
+file exists every 2026 knockout result reads "pending".
+**Rules held by tests:** `tests/test_site.py` (no external scripts or CDN, no `innerHTML`/`eval`, Riot's Legal Jibber Jabber notice verbatim,
+Oracle's Elixir credit, no logos or images, JS provenance labels equal the exporter's); `node --test site/js/util.test.mjs` (scale, tick
+and date maths). Charts have `<title>`/`<desc>`, tables carry the same numbers, text contrast is at least 7:1 in both themes.
+**Alternatives considered:** "Broadcast dark" (the common dark-plus-neon default; weaker chart contrast) and plain documentation (reads
+like a README; provenance only as text).
+**Caveats:** the impeccable detector flags the hatched what-if swatch as "repeating-gradient stripes"; it is the provenance mark, not
+decoration, so it stays. Not browser-tested beyond headless Chrome (Chrome desktop widths and an iframe at 390 px); no screen-reader pass.
+**Revisit if:** the score output exists (re-run the export; no site change), or a fourth provenance mark is needed.
+
 ## 2026-11-13 — Site export: provenance labels and what the site shows (Phu)
 **Decision:** `python -m worlds.export` writes team-level JSON for the static site (`site/data/`). Every probability carries a
 `provenance` and a `derivation`; rating-history points carry a `provenance` too.
