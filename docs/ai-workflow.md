@@ -121,6 +121,18 @@ blue" did not follow.
 q from pre-cutoff games instead of assuming it. The estimate came later: q = 0.218 from 1,736 games, so the
 previous loser was on blue about 22% of the time.
 
+### 2026-11-13 — "Committed before the matches" was not true
+**What Claude did:** Desktop Claude's brief for the website defined the `frozen` label as "the tagged
+pred-2026-preQF prediction, committed before the matches". Written from the project summary, not from git.
+**How it was caught:** Claude Code, in plan mode, before any code: `git log` shows the prediction output was
+committed on 2026-11-10 (1efe4e7 at 22:52:38 +11:00, output in 08e0ebe two seconds later), a week after the
+quarterfinals started on Nov 3; the tag came on Nov 12. Only the final was played after the commit. decisions.md
+(2026-11-10) already said the prediction was retroactive.
+**Fix and new rule:** The label wording is now "computed from games before the 2026-11-02 cutoff, committed
+2026-11-10 after the quarterfinals had started, never re-run", and each knockout match says whether it was played
+before or after the commit (decisions.md, 2026-11-13). Rule: a claim about when something happened comes from git
+history or a dated log entry, not from a summary.
+
 ## What I did myself
 
 _Draft, Phu to edit._

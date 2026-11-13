@@ -12,6 +12,55 @@ Each entry: what was decided, what else was considered, the evidence, and when t
 **Revisit if:**
 -->
 
+## 2026-11-13 — Site export: provenance labels and what the site shows (Phu)
+**Decision:** `python -m worlds.export` writes team-level JSON for the static site (`site/data/`). Every probability carries a
+`provenance` and a `derivation`; rating-history points carry a `provenance` too.
+- `frozen`: the tagged pre-QF prediction (`results/worlds_2026_preQF.json`, tag `pred-2026-preQF`), never re-run. Wording is
+  retroactive: computed from games before 2026-11-02, committed 2026-11-10 (1efe4e7, output 08e0ebe) after the quarterfinals
+  had started, tag created 2026-11-12. Each 2026 knockout match records `played_before_commit` from its start time.
+  A series probability for a pair the saved odds do not give (QF/SF/F matchups) is computed by `score.series_prob` from the
+  frozen strengths, H, q and sigma (no simulation): derivation `computed_from_frozen_inputs`, and the site says it was not
+  saved on 11-10. Saved odds are derivation `saved`.
+- `walk_forward`: the 2023-25 backtest and the 2026 play-in/Swiss, computed afterwards, each game from games with `date < t`.
+  So these cannot be read as live predictions, and the frozen ones cannot be read as pre-registered for the QF/SF.
+- `sensitivity`: the coin-flip run of 2026-11-12, shown only on the Overview as a what-if column beside the frozen odds.
+- `replay` (Phu, 2026-11-13, leakage-review finding): team-history points dated before that Worlds' start date. "Rating
+  reconstructed with this tournament's settings (H and decay fixed at the start date). Shown for context. Not a prediction made
+  at the time." Points from the start date on stay `walk_forward`. The chart draws the replay segment lighter/dashed with a
+  vertical marker at the start date. Why: replay points come from a replay whose H (blue win rate over the year before the
+  start) and decay weights use information dated after the point. Alternatives: (a) keep them `walk_forward` with a caveat
+  (rejected: the legend would overstate), (c) hide pre-start points (rejected: the context before a Worlds is the interesting part).
+**Other decisions taken with it:**
+- Elo history = per-Worlds segments of strength (team rating + league offset): segment Y is the replay the model ran going
+  into Worlds Y plus the in-tournament updates, for games after Worlds Y-1's last game. Decay weights are measured from each
+  cutoff, so one replay to 2026 would not show the ratings the model used in 2023. The curve jumps at segment boundaries.
+- Walk-forward series probability = constant side-neutral per-game p (mean of A on blue and on red, from ratings before game 1)
+  through the Bo3/Bo5 formulas; a Bo1 uses its own game probability. The 2026 knockouts use the RoFS model, so the two are not
+  the same model; the match page says which.
+- Swiss and knockout dates for 2023-25 live in `config/export.yaml`, checked against the data (16 Swiss teams, 8 at 3 wins and
+  8 at 3 losses, 8 knockout teams, 4/2/1 series): a wrong date raises. Sources were search results, not official-page reads;
+  the 2023 knockout start (Nov 2) was not confirmed by any source found, was read off the data, and was confirmed by Phu
+  2026-11-13 (as was the 2023 Dplus Kia v KT Rolster Swiss rematch, which is why the export builds its own series).
+- The model on the Model page is +H+league (k_league 64). k_league was chosen on 2023-24, which the pooled 0.6614 includes;
+  2025 is the only year not used to choose it (the page says so).
+**Alternatives considered:** no labels (rejected: a walk-forward number looks like a forecast); one "model" label (loses the
+retroactive-vs-after-the-fact difference); dropping the walk-forward numbers (the match and team pages need them); the brief's
+wording "committed before the matches" (false for QFs/SFs); one continuous undecayed replay for the Elo chart (smooth but not the
+model's ratings).
+**Evidence:** `tests/test_export.py`: frozen numbers equal the saved file, the 2026 replay reproduces the frozen strengths to 1e-9,
+the data hash matches, flipping every result from the cutoff on changes no output, flipping results after game t changes no
+probability up to t, the exported games reproduce pooled log loss 0.6614 (n = 300), whitelist of output keys. `backtest.compare()`
+now returns what `main()` prints (stdout byte-identical).
+**Caveats:** (a) A team's last history point is as of its own last game; league offsets keep moving with other teams'
+international games, so e.g. Gen.G's last point (2038.8) differs from its frozen strength at the cutoff (2015.8, LCK offset
+281.9 -> 258.9). (b) A team that plays two games with the same timestamp has its second row's `rating_before` include the first.
+(c) Match start times for 2026 knockouts come from `config/worlds_2026_results.yaml` (read only); a finished series with no start
+raises, and an unknown start is `played_before_commit: null`, not false. (d) History points dated before a Worlds start are labelled
+`replay` (see above); the Worlds-start rating used for each first scored game is the model's actual input and stays `walk_forward`. (e) k_league 64 was chosen on 2023-24, so those matches carry `k_league_in_sample: true`.
+(f) The frozen prediction and the sensitivity result are pinned by sha256 in `config/export.yaml`, and the score output must have
+been made from the results file now on disk; otherwise the export refuses to run.
+**Revisit if:** the 2023 knockout date or any stage date is corrected; the score output exists (re-run the export, no code change).
+
 ## 2026-11-12 — Sensitivity check: coin flip for QF game 1
 **Decision:** `python -m worlds.sensitivity config/sensitivity/game1_coin_flip.yaml` re-runs the frozen pre-QF prediction with
 `rofs_game1.quarterfinals = coin_flip` (primary: `higher_seed`). The check was named as a possible sensitivity check in the 2026-11-10 integrity note; the override file and code were
