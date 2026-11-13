@@ -33,7 +33,7 @@ from worlds.series import series_win_prob
 
 EXPORT_CONFIG_PATH = Path("config/export.yaml")
 SCORE_CONFIG_PATH = Path("config/score.yaml")
-PROVENANCE = ("frozen", "walk_forward", "sensitivity")
+PROVENANCE = ("frozen", "walk_forward", "sensitivity", "replay")
 DERIVATION = ("saved", "computed_from_frozen_inputs", "walk_forward_replay")
 # k_league is chosen on these Worlds (backtest.compare's grid): their matches are in-sample for it.
 K_LEAGUE_FIT_YEARS = (2023, 2024)
@@ -54,6 +54,10 @@ def legends(exp: dict, pred: dict, generated: datetime) -> tuple[dict, dict]:
             "it, with results added game by game; H and the decay weights are fixed at the "
             "start of each Worlds, and k_league was chosen on the 2023-24 results. Not a "
             "live prediction."
+        ),
+        "replay": (
+            "Rating reconstructed with this tournament's settings (H and decay fixed at the "
+            "start date). Shown for context. Not a prediction made at the time."
         ),
         "sensitivity": (
             "Sensitivity: the frozen run repeated after the fact with one assumption changed "
@@ -88,6 +92,7 @@ HISTORY_COLUMNS = [
     "offset_after",
     "gameid",
     "segment",
+    "provenance",
 ]
 
 
@@ -405,13 +410,18 @@ def knockout_matches(
 
 
 def team_history(
-    hist: dict[int, pd.DataFrame], seg_end: dict[int, pd.Timestamp], scored: set
+    hist: dict[int, pd.DataFrame],
+    seg_end: dict[int, pd.Timestamp],
+    starts: dict[int, pd.Timestamp],
+    scored: set,
 ) -> tuple[dict[str, list], dict[str, tuple]]:
     """One point per game per team across the per-Worlds segments. Segment Y = the rating
     history of Worlds Y's run (replay up to its start, then in-tournament) for games dated
     after Worlds Y-1's last scored game up to Worlds Y's last scored game: exactly the
     ratings the model had going into that Worlds. Returns ({team: points}, {team: (league
-    key, offset) after its last point})."""
+    key, offset) after its last point}). A point dated before its Worlds' start is a
+    "replay" (rating rebuilt with that tournament's H and decay, not a prediction made at
+    the time); from the start on it is "walk_forward"."""
     points: dict[str, list] = defaultdict(list)
     latest: dict[str, tuple] = {}
     prev = None
@@ -431,6 +441,7 @@ def team_history(
                     r.offset_after,
                     r.gameid if r.gameid in scored else None,
                     y,
+                    "replay" if r.date < starts[y] else "walk_forward",
                 ]
             )
             latest[r.team] = (r.league_after, r.offset_after)
@@ -785,8 +796,12 @@ def build_all(
 
     scored = {g["gameid"] for m in matches for g in m.get("games", []) if "gameid" in g}
     seg_end = {y: res.predictions["date"].max() for y, res in results.items()}
+    starts = {
+        y: pd.Timestamp(bcfg["tournaments"][y]["start_date"] if y != 2026 else start26)
+        for y in results
+    }
     points, latest = team_history(
-        {y: r.history for y, r in results.items()}, seg_end, scored
+        {y: r.history for y, r in results.items()}, seg_end, starts, scored
     )
     names = sorted({t for m in matches for t in (m["a"], m["b"]) if t})
     slugs = {t: slugify(t) for t in names}
@@ -826,14 +841,13 @@ def build_all(
             ],  # league and offset are as of the team's last game
             "worlds": worlds,
             "history": {
-                "provenance": "walk_forward",
                 "note": (
                     "Strength = team rating + league offset, one point per game. Each "
-                    "segment is the replay the model ran going into that Worlds. Points dated "
-                    "before a Worlds start come from a replay whose H (blue win rate over the "
-                    "year before the start) and decay weights are fixed at that start, so they "
-                    "use some information dated after the point."
+                    "segment is the rating the model had going into that Worlds. Points "
+                    "before the start date are replay, from the start date on walk_forward; "
+                    "each point carries its own provenance."
                 ),
+                "segment_starts": {str(y): iso(t) for y, t in starts.items()},
                 "columns": HISTORY_COLUMNS,
                 "points": points[t],
             },

@@ -532,6 +532,8 @@ ALLOWED_KEYS = {
     "title",
     "variant",
     "as_of",
+    "replay",
+    "segment_starts",
     "k_league_in_sample",
     "output_commit",
     "prediction_sha256",
@@ -836,3 +838,75 @@ def test_in_sample_flag_and_as_of(built):
             assert m["assumptions"]["k_league_in_sample"] == (m["year"] in (2023, 2024))
     t = files["teams/gen-g.json"]
     assert t["as_of"] == t["history"]["points"][-1][0]
+
+
+def test_team_history_labels_points_before_the_start_as_replay():
+    def rows(*dates):
+        return pd.DataFrame(
+            [
+                {
+                    "gameid": f"g{i}",
+                    "date": pd.Timestamp(d),
+                    "team": "A",
+                    "opponent": "B",
+                    "rating_before": 1500.0,
+                    "rating_after": 1510.0,
+                    "offset_before": 0.0,
+                    "offset_after": 0.0,
+                    "league_before": None,
+                    "league_after": "LCK",
+                }
+                for i, d in enumerate(dates)
+            ]
+        )
+
+    hist = {
+        2024: rows("2024-03-01", "2024-09-25 00:00", "2024-10-01"),
+        2025: rows("2024-11-20", "2025-10-13 23:59", "2025-10-14"),
+    }
+    seg_end = {2024: pd.Timestamp("2024-10-01"), 2025: pd.Timestamp("2025-10-14")}
+    starts = {2024: pd.Timestamp("2024-09-25"), 2025: pd.Timestamp("2025-10-14")}
+    pts, _ = export.team_history(hist, seg_end, starts, {"g1"})
+    assert [(p[0][:10], p[6], p[7]) for p in pts["A"]] == [
+        ("2024-03-01", 2024, "replay"),
+        ("2024-09-25", 2024, "walk_forward"),  # the start instant is in the tournament
+        ("2024-10-01", 2024, "walk_forward"),
+        ("2024-11-20", 2025, "replay"),
+        ("2025-10-13", 2025, "replay"),
+        ("2025-10-14", 2025, "walk_forward"),
+    ]
+    assert [p[5] for p in pts["A"]][1] == "g1"  # only scored games carry a gameid
+
+
+def test_replay_legend_is_the_agreed_wording():
+    exp = {
+        "frozen_committed_utc": pd.Timestamp("2026-11-10T11:52:38"),
+        "frozen_tag": "T",
+        "frozen_output_commit": "abc1234",
+    }
+    pred = {"meta": {"prediction_cutoff_utc": "2026-11-02T00:00:00"}}
+    legend, _ = export.legends(exp, pred, datetime.datetime(2027, 1, 5))
+    assert legend["replay"] == (
+        "Rating reconstructed with this tournament's settings (H and decay fixed at the "
+        "start date). Shown for context. Not a prediction made at the time."
+    )
+    assert set(export.PROVENANCE) == set(legend)
+
+
+@needs_real
+def test_history_points_replay_before_start_walk_forward_from_it(built):
+    files, _, args, _ = built
+    cfg = args["bcfg"]["tournaments"]
+    n = {"replay": 0, "walk_forward": 0}
+    for t in files["teams/index.json"]["teams"]:
+        h = files[f"teams/{t['slug']}.json"]["history"]
+        assert "provenance" in h["columns"]
+        starts = {int(y): pd.Timestamp(v) for y, v in h["segment_starts"].items()}
+        for y in (2023, 2024, 2025):
+            assert starts[y] == pd.Timestamp(cfg[y]["start_date"])
+        assert starts[2026] == pd.Timestamp(args["cfg26"]["start_date"])
+        for p in h["points"]:
+            want = "replay" if pd.Timestamp(p[0]) < starts[p[6]] else "walk_forward"
+            assert p[7] == want
+            n[want] += 1
+    assert n["replay"] > 0 and n["walk_forward"] > 0

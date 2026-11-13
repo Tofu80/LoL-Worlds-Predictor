@@ -23,11 +23,12 @@ series_gap_hours: 4
 # start_date to swiss_start are play-in, then Swiss until knockout_start, then the knockout.
 # The export checks them against the data: 16 Swiss teams, 8 at 3 wins and 8 at 3 losses,
 # and 8 knockout teams (4 quarterfinals, 2 semifinals, 1 final); a wrong date raises.
-# Sources are search results read 2026-11-13, not official-page reads; REVIEW (Phu).
+# Sources are search results read 2026-11-13, not official-page reads. Phu confirmed the 2023
+# knockout start (Nov 2) and the 2023 Dplus Kia v KT Rolster rematch on 2026-11-13.
 stages:
   2023:
     swiss_start: 2023-10-19     # afkgaming.com, gameleap.com, sportskeeda.com (all: Swiss day 1 = Oct 19)
-    knockout_start: 2023-11-02  # NOT confirmed by any source found; read off the data (no games Oct 30-Nov 1)
+    knockout_start: 2023-11-02  # confirmed by Phu 2026-11-13 (no source found; matches the data: no games Oct 30-Nov 1)
   2024:
     swiss_start: 2024-10-03     # sportskeeda.com (Swiss Oct 3-13), onlineesports.com
     knockout_start: 2024-10-17  # sportskeeda.com, onlineesports.com (quarterfinals Oct 17-20)
