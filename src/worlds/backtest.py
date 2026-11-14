@@ -41,6 +41,8 @@ class BacktestResult:
     n_prestart_wlds: int = (
         0  # same-year WLDs games before start_date: rated, not scored
     )
+    # Per-game rating snapshots (elo.EloState.history) when record=True, else None.
+    history: pd.DataFrame | None = None
 
 
 def log_loss(p, y) -> float:
@@ -116,6 +118,7 @@ def backtest_worlds(
     games: pd.DataFrame,
     config: dict,
     cutoff_date: pd.Timestamp,
+    record: bool = False,
 ) -> BacktestResult:
     """Backtest one Worlds starting at cutoff_date.
 
@@ -129,6 +132,11 @@ def backtest_worlds(
     but are not scored. Games sharing a timestamp are all predicted before any
     of them updates the ratings. cutoff_date must be <= start_date, otherwise a
     scored game's own result would already be in the starting ratings.
+    record=True also returns result.history: every game from the replay and the window,
+    with each team's rating and league offset before and after (equal in frozen mode).
+    It changes no prediction. history.scored marks the games in predictions; the rest
+    are replay rows, qualifiers and other leagues. If one team plays two games with the
+    same timestamp, the second row's rating_before includes the first (predictions do not).
     """
     mode = config["rating_updates"]
     if mode not in RATING_UPDATES:
@@ -142,7 +150,7 @@ def backtest_worlds(
         )
 
     k, initial = config["k_factor"], float(config["initial_rating"])
-    state = elo.replay(games, cutoff_date, config)
+    state = elo.replay(games, cutoff_date, config, record=record)
     ratings = state.team
     table = _blue_red(games)
     scored = (
@@ -185,10 +193,26 @@ def backtest_worlds(
                         state.member.get(g.red),
                     )
                 )
-        if mode == "in_tournament":
-            for g in group.itertuples(index=False):
-                state.update(g.blue, g.red, g.league, bool(g.result == 1), k)
+        for g in group.itertuples(index=False):
+            if mode == "in_tournament":
+                state.update(
+                    g.blue,
+                    g.red,
+                    g.league,
+                    bool(g.result == 1),
+                    k,
+                    gameid=g.gameid,
+                    date=g.date,
+                )
+            else:
+                state.observe(g.blue, g.red, g.gameid, g.date)
     result = score(pd.DataFrame(rows, columns=PREDICTION_COLUMNS))
+    if record:
+        result.history = pd.DataFrame(state.history)
+        # replay rows (date < cutoff_date), qualifiers and other leagues are not scored
+        result.history["scored"] = result.history["gameid"].isin(
+            result.predictions["gameid"]
+        )
     result.n_prestart_wlds = int(
         (
             (table["league"] == "WLDs")
