@@ -12,6 +12,26 @@ Each entry: what was decided, what else was considered, the evidence, and when t
 **Revisit if:**
 -->
 
+## 2026-11-14 - Added final tab timestamp 
+No QF/SF odds (Phu, 2026-11-12): only archive prices with unclear timestamps were available, so the market comparison covers the final only (n = 1 series). Closing snapshot: worlds_2026_F_20261114T140253Z.yaml (TAB, Gen.G 1.52 / BLG 2.35).
+
+
+## 2026-11-12 — RoFS checked against the official 2026 ruleset (supersedes in part the 2026-11-10 RoFS entry)
+**Decision:** Checked the RoFS rules against the official 2026 World Championship Event Specific Ruleset v1.0, section 4.1.4
+([archived on Leaguepedia](https://lol.fandom.com/wiki/Archive:Official_Rulebooks/Riot/Worlds/2026)): the holder picks side OR pick order (4.1.4.1); QF game 1 = better Swiss record (4.1.4.4.1); SF and final
+game 1 = coin flip (4.1.4.4.2); later games = previous loser (4.1.4.6); bracket halves (4.3.4.2). All match the model except equal
+Swiss records in a QF: the rulebook uses quarterfinal draw order, the model uses a coin flip (TES-IG only).
+**Known mismatch:** effect at most about 1pp on that QF. The frozen prediction is not re-run.
+**Alternatives considered:** re-running with draw order (rejected: a new version, not the frozen prediction).
+**Evidence:** ruleset text, sections as listed. Revisit if the mismatch matters for a later event.
+
+## 2026-11-12 — Odds benchmark: TAB
+**Decision:** One bookmaker (TAB), an early snapshot plus a closing snapshot on match day; the scorer uses the latest snapshot
+strictly before the start. Snapshots are pushed before the match so the push time is evidence they predate it.
+**Alternatives considered:** several bookmakers or an odds average (more hand entry, no clear gain for 7 series).
+**Evidence:** `results/odds/worlds_2026_F_20261111T233500Z.yaml` (TAB, Gen.G 1.60, Bilibili Gaming 2.40) parses with
+`score.load_odds` (margin-free 0.60 / 0.40).
+
 ## 2026-11-12 — Sensitivity check: coin flip for QF game 1
 **Decision:** `python -m worlds.sensitivity config/sensitivity/game1_coin_flip.yaml` re-runs the frozen pre-QF prediction with
 `rofs_game1.quarterfinals = coin_flip` (primary: `higher_seed`). The check was named as a possible sensitivity check in the 2026-11-10 integrity note; the override file and code were
@@ -26,6 +46,8 @@ Only the 2026 CSV's sha256 is recorded (`csv_snapshot`); the 2023-25 files are c
 **Result:** max |change| in title odds is 0.002 (Bilibili Gaming -0.0020, Dplus Kia +0.0015; 3 dp in the .md); max |change| in P(SF) is 0.005. QF1 Dplus Kia
 v Bilibili Gaming moves 0.369 -> 0.375, QF2 0.142 -> 0.139, QF3 and QF4 move by 0.001 or less. **Primary prediction unchanged**: it
 stays the one reported and scored; the variant never replaces it. Output: `results/worlds_2026_preQF_sens_game1coin.{json,md}`.
+**Update 2026-11-12:** the holder rule is now confirmed by the official ruleset (see the RoFS entry above), so the check tested the
+remaining assumption (q from games 2+ reused for game 1). Result unchanged (max title change 0.002).
 **Open (Phu chose):** scoring the variant is a follow-up PR (`worlds.score --prediction <file>`), not built here.
 **Alternatives considered:** a CLI flag (not pre-registered in git, nothing to hash) and editing `worlds_2026.yaml` (changes the hash).
 
@@ -91,7 +113,7 @@ cutoff: the share of games 2+ (same two teams, < 4 h after the previous game) in
 FST, EWC, ASI where the previous loser played blue. The same q is used for game 1. `series.bo5_rofs_win_prob` is an exact
 recursion over (wins A, wins B, previous loser) and matches brute-force enumeration over 5-game paths and side outcomes.
 With H = 0 it equals p^3(10-15p+6p^2) for every q; with q = 0.5 it equals the side-neutral average.
-**Unconfirmed assumption:** the game-1 holder rule follows Worlds' historical side-selection methods and has NOT been
+**Unconfirmed assumption (SUPERSEDED in part 2026-11-12, see "RoFS checked against the official 2026 ruleset"):** the game-1 holder rule follows Worlds' historical side-selection methods and has NOT been
 checked against the 2026 Worlds ruleset (neither source page mentions side selection).
 **Alternatives considered:** Constant p for knockouts (ignores that the loser tends to take red); modelling first pick /
 draft order (first-pick teams win ~51%, not measurable); q = 0.5.
