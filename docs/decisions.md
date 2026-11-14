@@ -12,9 +12,13 @@ Each entry: what was decided, what else was considered, the evidence, and when t
 **Revisit if:**
 -->
 
+## 2026-11-14 - Added final tab timestamp 
+No QF/SF odds (Phu, 2026-11-12): only archive prices with unclear timestamps were available, so the market comparison covers the final only (n = 1 series). Closing snapshot: worlds_2026_F_20261114T140253Z.yaml (TAB, Gen.G 1.52 / BLG 2.35).
+
+
 ## 2026-11-12 — RoFS checked against the official 2026 ruleset (supersedes in part the 2026-11-10 RoFS entry)
 **Decision:** Checked the RoFS rules against the official 2026 World Championship Event Specific Ruleset v1.0, section 4.1.4
-(`docs/references/`): the holder picks side OR pick order (4.1.4.1); QF game 1 = better Swiss record (4.1.4.4.1); SF and final
+([archived on Leaguepedia](https://lol.fandom.com/wiki/Archive:Official_Rulebooks/Riot/Worlds/2026)): the holder picks side OR pick order (4.1.4.1); QF game 1 = better Swiss record (4.1.4.4.1); SF and final
 game 1 = coin flip (4.1.4.4.2); later games = previous loser (4.1.4.6); bracket halves (4.3.4.2). All match the model except equal
 Swiss records in a QF: the rulebook uses quarterfinal draw order, the model uses a coin flip (TES-IG only).
 **Known mismatch:** effect at most about 1pp on that QF. The frozen prediction is not re-run.
