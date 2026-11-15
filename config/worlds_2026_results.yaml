@@ -13,11 +13,66 @@
 #     score: [3, 1]
 #     games:
 #       - {blue: Dplus Kia, winner: Bilibili Gaming}
+# Filled 2026-11-16. Series ids follow config/worlds_2026.yaml order (not play order).
+# start_utc = first game's start in the Oracle's Elixir CSV (Nov 15 download).
 series:
-  QF1: {start_utc: null, winner: null, score: null, games: []}
-  QF2: {start_utc: null, winner: null, score: null, games: []}
-  QF3: {start_utc: null, winner: null, score: null, games: []}
-  QF4: {start_utc: null, winner: null, score: null, games: []}
-  SF1: {start_utc: null, winner: null, score: null, games: []}
-  SF2: {start_utc: null, winner: null, score: null, games: []}
-  F: {start_utc: null, winner: null, score: null, games: []}
+  QF1:
+    start_utc: 2026-11-05T22:13:02
+    winner: Bilibili Gaming
+    score: [3, 0]
+    games:
+      - {blue: Bilibili Gaming, winner: Bilibili Gaming}
+      - {blue: Dplus Kia, winner: Bilibili Gaming}
+      - {blue: Dplus Kia, winner: Bilibili Gaming}
+  QF2:
+    start_utc: 2026-11-06T22:13:16
+    winner: T1
+    score: [3, 1]
+    games:
+      - {blue: T1, winner: T1}
+      - {blue: Karmine Corp, winner: T1}
+      - {blue: Karmine Corp, winner: Karmine Corp}
+      - {blue: Karmine Corp, winner: T1}
+  QF3:
+    start_utc: 2026-11-03T22:14:54
+    winner: Invictus Gaming
+    score: [3, 1]
+    games:
+      - {blue: Invictus Gaming, winner: Invictus Gaming}
+      - {blue: Invictus Gaming, winner: Top Esports}
+      - {blue: Top Esports, winner: Invictus Gaming}
+      - {blue: Invictus Gaming, winner: Invictus Gaming}
+  QF4:
+    start_utc: 2026-11-04T22:13:57
+    winner: Gen.G
+    score: [3, 0]
+    games:
+      - {blue: Gen.G, winner: Gen.G}
+      - {blue: Gen.G, winner: Gen.G}
+      - {blue: Gen.G, winner: Gen.G}
+  SF1:
+    start_utc: 2026-11-08T22:14:09
+    winner: Bilibili Gaming
+    score: [3, 1]
+    games:
+      - {blue: Bilibili Gaming, winner: Bilibili Gaming}
+      - {blue: T1, winner: T1}
+      - {blue: Bilibili Gaming, winner: Bilibili Gaming}
+      - {blue: T1, winner: Bilibili Gaming}
+  SF2:
+    start_utc: 2026-11-07T22:14:27
+    winner: Gen.G
+    score: [3, 0]
+    games:
+      - {blue: Gen.G, winner: Gen.G}
+      - {blue: Gen.G, winner: Gen.G}
+      - {blue: Invictus Gaming, winner: Gen.G}
+  F:
+    start_utc: 2026-11-14T19:53:13
+    winner: Bilibili Gaming
+    score: [3, 1]
+    games:
+      - {blue: Gen.G, winner: Gen.G}
+      - {blue: Gen.G, winner: Bilibili Gaming}
+      - {blue: Gen.G, winner: Bilibili Gaming}
+      - {blue: Bilibili Gaming, winner: Bilibili Gaming}

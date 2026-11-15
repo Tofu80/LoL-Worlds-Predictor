@@ -12,9 +12,14 @@ Each entry: what was decided, what else was considered, the evidence, and when t
 **Revisit if:**
 -->
 
-## 2026-11-14 - Added final tab timestamp 
-No QF/SF odds (Phu, 2026-11-12): only archive prices with unclear timestamps were available, so the market comparison covers the final only (n = 1 series). Closing snapshot: worlds_2026_F_20261114T140253Z.yaml (TAB, Gen.G 1.52 / BLG 2.35).
-
+## 2026-11-14 — Closing TAB snapshot for the final; market comparison covers the final only
+**Decision:** No QF/SF odds (Phu, 2026-11-12): only archive prices with unclear timestamps were available, so the market
+comparison covers the final only (n = 1 series). Closing snapshot: `worlds_2026_F_20261114T140253Z.yaml` (TAB, Gen.G 1.52 /
+BLG 2.35), margin-free Gen.G 0.607 / BLG 0.393. The final actually started 2026-11-14 19:53 UTC (06:53 Sydney), so the snapshot
+was taken about 6 hours before the start.
+**Alternatives considered:** using the archive prices for QF/SF (rejected: timestamps unclear, so they could postdate the start).
+**Evidence:** snapshot file in `results/odds/`; the scorer uses the latest snapshot strictly before the series start.
+**Revisit if:** timestamped QF/SF prices turn up.
 
 ## 2026-11-12 — RoFS checked against the official 2026 ruleset (supersedes in part the 2026-11-10 RoFS entry)
 **Decision:** Checked the RoFS rules against the official 2026 World Championship Event Specific Ruleset v1.0, section 4.1.4
