@@ -1,0 +1,455 @@
+{
+  "partial": false,
+  "n": {
+    "series": 7,
+    "games": 25,
+    "odds_series": 1,
+    "games_in_unfinished_series": 0,
+    "round_items": 24
+  },
+  "series": [
+    {
+      "series": "QF1",
+      "a": "Dplus Kia",
+      "b": "Bilibili Gaming",
+      "winner": "Bilibili Gaming",
+      "score": [
+        3,
+        0
+      ],
+      "p_a_model": 0.36904668058024337,
+      "p_a_blue_only": 0.4929171657967354,
+      "a_won": 0
+    },
+    {
+      "series": "QF2",
+      "a": "Karmine Corp",
+      "b": "T1",
+      "winner": "T1",
+      "score": [
+        3,
+        1
+      ],
+      "p_a_model": 0.14228943710973385,
+      "p_a_blue_only": 0.5070828342032647,
+      "a_won": 0
+    },
+    {
+      "series": "QF3",
+      "a": "Top Esports",
+      "b": "Invictus Gaming",
+      "winner": "Invictus Gaming",
+      "score": [
+        3,
+        1
+      ],
+      "p_a_model": 0.49864088247401245,
+      "p_a_blue_only": 0.5,
+      "a_won": 0
+    },
+    {
+      "series": "QF4",
+      "a": "Gen.G",
+      "b": "LYON",
+      "winner": "Gen.G",
+      "score": [
+        3,
+        0
+      ],
+      "p_a_model": 0.9560606432873666,
+      "p_a_blue_only": 0.4929171657967354,
+      "a_won": 1
+    },
+    {
+      "series": "SF1",
+      "a": "Bilibili Gaming",
+      "b": "T1",
+      "winner": "Bilibili Gaming",
+      "score": [
+        3,
+        1
+      ],
+      "p_a_model": 0.6841720871835403,
+      "p_a_blue_only": 0.5,
+      "a_won": 1
+    },
+    {
+      "series": "SF2",
+      "a": "Invictus Gaming",
+      "b": "Gen.G",
+      "winner": "Gen.G",
+      "score": [
+        3,
+        0
+      ],
+      "p_a_model": 0.18212849315299592,
+      "p_a_blue_only": 0.5,
+      "a_won": 0
+    },
+    {
+      "series": "F",
+      "a": "Bilibili Gaming",
+      "b": "Gen.G",
+      "winner": "Bilibili Gaming",
+      "score": [
+        3,
+        1
+      ],
+      "p_a_model": 0.330819768161341,
+      "p_a_blue_only": 0.5,
+      "a_won": 1
+    }
+  ],
+  "series_scores": {
+    "model": {
+      "log_loss": 0.43373656281538675,
+      "brier": 0.14110505347412952
+    },
+    "half": {
+      "log_loss": 0.6931471805599453,
+      "brier": 0.25
+    },
+    "blue_only": {
+      "log_loss": 0.6952139870585724,
+      "brier": 0.25103333340347395
+    }
+  },
+  "rounds": {
+    "semifinal": {
+      "n": 8,
+      "model": {
+        "n": 8,
+        "log_loss": 0.33325412634561613,
+        "brier": 0.100034085
+      },
+      "half": {
+        "n": 8,
+        "log_loss": 0.6931471805599453,
+        "brier": 0.25
+      },
+      "blue_only": {
+        "n": 8,
+        "log_loss": 0.6967640919325426,
+        "brier": 0.25180833345607934
+      }
+    },
+    "final": {
+      "n": 8,
+      "model": {
+        "n": 8,
+        "log_loss": 0.23964666583703342,
+        "brier": 0.0640912425
+      },
+      "half": {
+        "n": 8,
+        "log_loss": 0.5623351446188083,
+        "brier": 0.1875
+      },
+      "blue_only": {
+        "n": 8,
+        "log_loss": 0.5623658045281825,
+        "brier": 0.1875094062263158
+      }
+    },
+    "title": {
+      "n": 8,
+      "model": {
+        "n": 8,
+        "log_loss": 0.33820210895475833,
+        "brier": 0.12119688499999999
+      },
+      "half": {
+        "n": 8,
+        "log_loss": 0.37677016125643675,
+        "brier": 0.109375
+      },
+      "blue_only": {
+        "n": 8,
+        "log_loss": 0.3747601981961184,
+        "brier": 0.1089346744188749
+      }
+    }
+  },
+  "games": {
+    "rows": [
+      {
+        "series": "QF1",
+        "game": 1,
+        "blue": "Bilibili Gaming",
+        "red": "Dplus Kia",
+        "p_blue_model": 0.6037658631373611,
+        "blue_won": 1
+      },
+      {
+        "series": "QF1",
+        "game": 2,
+        "blue": "Dplus Kia",
+        "red": "Bilibili Gaming",
+        "p_blue_model": 0.45936150108959484,
+        "blue_won": 0
+      },
+      {
+        "series": "QF1",
+        "game": 3,
+        "blue": "Dplus Kia",
+        "red": "Bilibili Gaming",
+        "p_blue_model": 0.45936150108959484,
+        "blue_won": 0
+      },
+      {
+        "series": "QF2",
+        "game": 1,
+        "blue": "T1",
+        "red": "Karmine Corp",
+        "p_blue_model": 0.757263859287256,
+        "blue_won": 1
+      },
+      {
+        "series": "QF2",
+        "game": 2,
+        "blue": "Karmine Corp",
+        "red": "T1",
+        "p_blue_model": 0.2936576270463898,
+        "blue_won": 0
+      },
+      {
+        "series": "QF2",
+        "game": 3,
+        "blue": "Karmine Corp",
+        "red": "T1",
+        "p_blue_model": 0.2936576270463898,
+        "blue_won": 1
+      },
+      {
+        "series": "QF2",
+        "game": 4,
+        "blue": "Karmine Corp",
+        "red": "T1",
+        "p_blue_model": 0.2936576270463898,
+        "blue_won": 0
+      },
+      {
+        "series": "QF3",
+        "game": 1,
+        "blue": "Invictus Gaming",
+        "red": "Top Esports",
+        "p_blue_model": 0.5329923007602202,
+        "blue_won": 1
+      },
+      {
+        "series": "QF3",
+        "game": 2,
+        "blue": "Invictus Gaming",
+        "red": "Top Esports",
+        "p_blue_model": 0.5329923007602202,
+        "blue_won": 0
+      },
+      {
+        "series": "QF3",
+        "game": 3,
+        "blue": "Top Esports",
+        "red": "Invictus Gaming",
+        "p_blue_model": 0.5314384779768362,
+        "blue_won": 0
+      },
+      {
+        "series": "QF3",
+        "game": 4,
+        "blue": "Invictus Gaming",
+        "red": "Top Esports",
+        "p_blue_model": 0.5329923007602202,
+        "blue_won": 1
+      },
+      {
+        "series": "QF4",
+        "game": 1,
+        "blue": "Gen.G",
+        "red": "LYON",
+        "p_blue_model": 0.8534495096248041,
+        "blue_won": 1
+      },
+      {
+        "series": "QF4",
+        "game": 2,
+        "blue": "Gen.G",
+        "red": "LYON",
+        "p_blue_model": 0.8534495096248041,
+        "blue_won": 1
+      },
+      {
+        "series": "QF4",
+        "game": 3,
+        "blue": "Gen.G",
+        "red": "LYON",
+        "p_blue_model": 0.8534495096248041,
+        "blue_won": 1
+      },
+      {
+        "series": "SF1",
+        "game": 1,
+        "blue": "Bilibili Gaming",
+        "red": "T1",
+        "p_blue_model": 0.6386562642895682,
+        "blue_won": 1
+      },
+      {
+        "series": "SF1",
+        "game": 2,
+        "blue": "T1",
+        "red": "Bilibili Gaming",
+        "p_blue_model": 0.4228615203129182,
+        "blue_won": 1
+      },
+      {
+        "series": "SF1",
+        "game": 3,
+        "blue": "Bilibili Gaming",
+        "red": "T1",
+        "p_blue_model": 0.6386562642895682,
+        "blue_won": 1
+      },
+      {
+        "series": "SF1",
+        "game": 4,
+        "blue": "T1",
+        "red": "Bilibili Gaming",
+        "p_blue_model": 0.4228615203129182,
+        "blue_won": 0
+      },
+      {
+        "series": "SF2",
+        "game": 1,
+        "blue": "Gen.G",
+        "red": "Invictus Gaming",
+        "p_blue_model": 0.7248626055712629,
+        "blue_won": 1
+      },
+      {
+        "series": "SF2",
+        "game": 2,
+        "blue": "Gen.G",
+        "red": "Invictus Gaming",
+        "p_blue_model": 0.7248626055712629,
+        "blue_won": 1
+      },
+      {
+        "series": "SF2",
+        "game": 3,
+        "blue": "Invictus Gaming",
+        "red": "Gen.G",
+        "p_blue_model": 0.3297733864102959,
+        "blue_won": 0
+      },
+      {
+        "series": "F",
+        "game": 1,
+        "blue": "Gen.G",
+        "red": "Bilibili Gaming",
+        "p_blue_model": 0.6297126679623971,
+        "blue_won": 1
+      },
+      {
+        "series": "F",
+        "game": 2,
+        "blue": "Gen.G",
+        "red": "Bilibili Gaming",
+        "p_blue_model": 0.6297126679623971,
+        "blue_won": 0
+      },
+      {
+        "series": "F",
+        "game": 3,
+        "blue": "Gen.G",
+        "red": "Bilibili Gaming",
+        "p_blue_model": 0.6297126679623971,
+        "blue_won": 0
+      },
+      {
+        "series": "F",
+        "game": 4,
+        "blue": "Bilibili Gaming",
+        "red": "Gen.G",
+        "p_blue_model": 0.43228030510587,
+        "blue_won": 1
+      }
+    ],
+    "model": {
+      "log_loss": 0.5530257915019239,
+      "brier": 0.18648616044797947,
+      "ci95": [
+        0.4462792219739448,
+        0.6626375513036128
+      ]
+    },
+    "half": {
+      "log_loss": 0.6931471805599452,
+      "brier": 0.25,
+      "ci95": [
+        0.6931471805599452,
+        0.6931471805599452
+      ]
+    },
+    "blue_only": {
+      "log_loss": 0.6819780954273146,
+      "brier": 0.24442298021045727,
+      "ci95": [
+        0.6551422972000962,
+        0.7088138936545331
+      ]
+    },
+    "model_minus_blue_only": {
+      "mean": -0.1289523039253907,
+      "ci95": [
+        -0.2322633177326475,
+        -0.015917758053129238
+      ]
+    }
+  },
+  "odds": {
+    "n": 1,
+    "rows": [
+      {
+        "series": "F",
+        "bookmaker": "TAB",
+        "timestamp_utc": "2026-11-14 14:02:53",
+        "rejected_after_start": [],
+        "p_a_bookmaker": 0.39276485788113696,
+        "p_a_model": 0.330819768161341,
+        "a_won": 1
+      }
+    ],
+    "skipped": [],
+    "bookmaker_log_loss": 0.9345441721835054,
+    "model_log_loss": 1.1061815589683166,
+    "half_log_loss": 0.6931471805599453
+  },
+  "meta": {
+    "tag": "pred-2026-preQF",
+    "tag_commit": "1efe4e7d7d3497563eede2bc297f528fe3ca3584",
+    "prediction_file": "results/worlds_2026_preQF.json",
+    "prediction": {
+      "commit": "1efe4e7d7d3497563eede2bc297f528fe3ca3584",
+      "config_sha256": "fe2d60dbbfedd6818f9d84517aa915e81e847b83465ca3ed228126f0a06cbd23",
+      "data_sha256": "3281b29ad7fc7f463b3499e47135f07efdfd57819ae2b7a18223f349110f8122",
+      "seed": 42,
+      "n_runs": 10000,
+      "H": 23.309278175100058,
+      "q": 0.21831797235023043,
+      "sigma": 50
+    },
+    "results_file": "config/worlds_2026_results.yaml",
+    "results_sha256": "a06c33001b894db17be0e7aff6290482eb9b856fe36f08317fa1421a07f4083c",
+    "csv_check": {
+      "QF1": "verified",
+      "QF2": "verified",
+      "QF3": "verified",
+      "QF4": "verified",
+      "SF1": "verified",
+      "SF2": "verified",
+      "F": "verified"
+    },
+    "quadrature_nodes": 41,
+    "bootstrap_samples": 2000,
+    "partial": false
+  }
+}
