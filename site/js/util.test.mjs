@@ -60,6 +60,7 @@ test("pathOf starts a new subpath per run and skips empty runs", () => {
 test("dates are read as UTC", () => {
   assert.equal(utcMs("2026-11-03T22:00"), Date.UTC(2026, 10, 3, 22, 0));
   assert.equal(utcMs("2026-11-03"), Date.UTC(2026, 10, 3));
+  assert.equal(utcMs("2026-11-10T11:52:30"), Date.UTC(2026, 10, 10, 11, 52, 30));
   assert.equal(dateLabel("2026-11-03T22:00"), "3 Nov 2026");
   assert.equal(dateLabel("2024-01-01"), "1 Jan 2024");
   assert.equal(dateTimeLabel("2026-11-03T22:00"), "3 Nov 2026, 22:00 UTC");

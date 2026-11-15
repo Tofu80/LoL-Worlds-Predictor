@@ -48,7 +48,7 @@ export function pathOf(runs, digits = 1) {
 
 /** "2026-11-03T22:00" (UTC, no zone in the data) -> milliseconds. */
 export function utcMs(iso) {
-  return Date.parse(iso.length <= 10 ? `${iso}T00:00:00Z` : `${iso}:00Z`.replace(/:00:00Z$/, ":00Z"));
+  return Date.parse(iso.length <= 10 ? `${iso}T00:00:00Z` : iso.length === 16 ? `${iso}:00Z` : `${iso}Z`);
 }
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
