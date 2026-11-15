@@ -1,6 +1,6 @@
 import { load, slugs } from "./data.mjs";
 import { h, mount } from "./dom.mjs";
-import { badge, listNotes } from "./prov.mjs";
+import { badge, commitTag, listNotes } from "./prov.mjs";
 import { failure, shell } from "./shell.mjs";
 import { dataTable, FORMAT_LABEL, matchHref, scoreText, STAGE_LABEL } from "./ui.mjs";
 import { dateLabel, pct } from "./util.mjs";
@@ -40,7 +40,7 @@ try {
           FORMAT_LABEL[m.format],
           { node: m.p_a === null ? "" : pct(m.p_a), num: true },
           m.result.status === "final" ? `${m.result.winner} ${scoreText(m.result.score)}` : { node: "Pending", cls: "pending" },
-          badge(m.provenance, meta, m.derivation),
+          { node: [badge(m.provenance, meta, m.derivation), commitTag(m)] },
           h("a", { href: matchHref(m.id) }, "Details"),
         ]),
       }),

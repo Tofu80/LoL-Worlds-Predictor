@@ -1,7 +1,7 @@
 import { bracket, hatchDefs, oddsBar } from "./charts.mjs";
-import { load, slugs, FINAL_UTC } from "./data.mjs";
+import { load, slugs } from "./data.mjs";
 import { h, mount } from "./dom.mjs";
-import { badge, derivationNote } from "./prov.mjs";
+import { badge, commitCounts, derivationNote } from "./prov.mjs";
 import { failure, shell } from "./shell.mjs";
 import { dataTable, matchHref, scoreText, teamLink } from "./ui.mjs";
 import { dateLabel, pct } from "./util.mjs";
@@ -32,6 +32,8 @@ try {
   const byId = Object.fromEntries(ko.map((m) => [m.id, m]));
   const top = Math.max(...ov.teams.map((t) => t.title));
   const pending = ov.score.status === "pending";
+  const cc = commitCounts(ko);
+  const finalStart = byId["2026-F"]?.start;
 
   const rows = ov.teams.map((t) => [
     teamLink(t.team, slugOf),
@@ -55,13 +57,13 @@ try {
         "div",
         { class: "head" },
         badge("frozen", meta),
-        h("span", { class: "small" }, `Committed ${dateLabel(ov.frozen.committed_utc)}, after the quarterfinals had started, and never re-run.`),
+        h("span", { class: "small" }, `Committed ${dateLabel(ov.frozen.committed_utc)} and never re-run. ${cc.before} of the ${cc.total} knockout series had already been played by then.`),
       ),
       pending
         ? h(
             "div",
             { class: "panel", role: "status" },
-            h("p", {}, h("strong", {}, "Results pending. "), `The final is on ${dateLabel(FINAL_UTC)} (UTC). Once the frozen prediction has been scored, this page shows how each team did.`),
+            h("p", {}, h("strong", {}, "Results pending. "), `The final is on ${finalStart ? dateLabel(finalStart) : "a date not entered yet"} (UTC). Once the frozen prediction has been scored, this page shows how each team did.`),
           )
         : null,
       h(
@@ -113,7 +115,7 @@ try {
             h("h2", {}, "How the frozen prediction did"),
             h("p", { class: "head" }, badge("frozen", meta, ov.score.derivation)),
             derivationNote(ov.score.derivation, meta),
-            h("p", { class: "small" }, `Scored on ${ov.score.n.series} series and ${ov.score.n.games} games. That is far too little to say anything about model quality.`),
+            h("p", { class: "small" }, `Scored on ${ov.score.n.series} series and ${ov.score.n.games} games. That is far too little to say anything about model quality. ${cc.before} of these ${cc.total} series were played before the prediction was committed, so only ${cc.after} ${cc.after === 1 ? "is" : "are"} out of sample in time.`),
             dataTable({
               caption: "Series log loss and Brier score",
               head: ["Forecast", { text: "Log loss", num: true }, { text: "Brier", num: true }],

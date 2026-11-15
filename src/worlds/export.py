@@ -47,7 +47,7 @@ def legends(exp: dict, pred: dict, generated: datetime) -> tuple[dict, dict]:
         "frozen": (
             f"Frozen: computed from games before {cutoff} only, ratings fixed at that cutoff, "
             f"committed {committed} (code at tag {exp['frozen_tag']}, output in "
-            f"{exp['frozen_output_commit']}) after the quarterfinals had started, and never re-run."
+            f"{exp['frozen_output_commit']}) and never re-run."
         ),
         "walk_forward": (
             "Walk-forward: computed afterwards. Each game is predicted from games dated before "
@@ -625,11 +625,6 @@ def overview_json(
             "series_scores": doc["series_scores"],
             "rounds": doc["rounds"],
             "games": {k: v for k, v in doc["games"].items() if k != "rows"},
-            "odds": {
-                k: doc["odds"][k]
-                for k in ("n", "bookmaker_log_loss", "model_log_loss", "half_log_loss")
-                if k in doc["odds"]
-            },
         }
     return {
         "year": 2026,

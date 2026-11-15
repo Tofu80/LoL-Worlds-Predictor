@@ -1,4 +1,4 @@
-import { load, slugs, FINAL_UTC } from "./data.mjs";
+import { load, slugs } from "./data.mjs";
 import { h, mount, params } from "./dom.mjs";
 import { badge, derivationNote } from "./prov.mjs";
 import { failure, NotFound, shell } from "./shell.mjs";
@@ -75,7 +75,7 @@ try {
             h("div", { class: "team b" }, teamLink(b, slugOf)),
           )
         : null,
-      h("h2", {}, "Probability before the match"),
+      h("h2", {}, m.derivation === "computed_from_frozen_inputs" ? "Probability from the frozen inputs" : "Probability before the match"),
       decided
         ? h(
             "div",
@@ -111,7 +111,7 @@ try {
         : h(
             "div",
             { class: "panel", role: "status" },
-            h("p", {}, h("strong", {}, "Pending. "), m.year === 2026 ? `Results appear once the frozen prediction is scored; the final is on ${dateTimeLabel(FINAL_UTC)} (UTC).` : "No result recorded."),
+            h("p", {}, h("strong", {}, "Pending. "), m.year === 2026 ? `Results appear once the frozen prediction is scored${m.start ? `; the series starts ${dateTimeLabel(m.start)} (UTC)` : ""}.` : "No result recorded."),
           ),
       games.length
         ? h(
