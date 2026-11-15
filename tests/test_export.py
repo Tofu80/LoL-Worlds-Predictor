@@ -349,6 +349,7 @@ def test_knockout_with_a_finished_series(frozen):
         m_["sigma"],
         41,
     )
+    pg = score.game_prob(a, b, pred["strengths"], m_["H"], m_["sigma"], 41)
     doc = {
         "series": [
             {
@@ -368,7 +369,7 @@ def test_knockout_with_a_finished_series(frozen):
                     "game": n,
                     "blue": a,
                     "red": b,
-                    "p_blue_model": 0.5,
+                    "p_blue_model": pg,
                     "blue_won": w,
                 }
                 for n, w in enumerate([0, 1, 0, 0], 1)
@@ -390,6 +391,10 @@ def test_knockout_with_a_finished_series(frozen):
     stale["series"][0]["p_a_model"] = p + 0.01
     with pytest.raises(ValueError, match="stale score file"):
         export.knockout_matches(pred, cfg_tag, 41, stale, starts, COMMITTED)
+    stale_game = copy.deepcopy(doc)
+    stale_game["games"]["rows"][2]["p_blue_model"] = pg + 0.01
+    with pytest.raises(ValueError, match="game 3.*stale score file"):
+        export.knockout_matches(pred, cfg_tag, 41, stale_game, starts, COMMITTED)
 
 
 @needs_real
