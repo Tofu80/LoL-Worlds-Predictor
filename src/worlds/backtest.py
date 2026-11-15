@@ -256,9 +256,13 @@ def matchup_class(blue_league, red_league, major: list[str]) -> str:
     return ("minor-minor", "major-minor", "major-major")[n_major]
 
 
-def run_years(games: pd.DataFrame, config: dict) -> dict[int, BacktestResult]:
+def run_years(
+    games: pd.DataFrame, config: dict, record: bool = False
+) -> dict[int, BacktestResult]:
     return {
-        year: backtest_worlds(year, games, config, pd.Timestamp(t["start_date"]))
+        year: backtest_worlds(
+            year, games, config, pd.Timestamp(t["start_date"]), record=record
+        )
         for year, t in config["tournaments"].items()
     }
 
@@ -279,17 +283,28 @@ def _row(label: str, results: dict[int, BacktestResult] | None, pooled: Backtest
 YEARS = (2023, 2024, 2025)
 
 
-def main() -> None:
-    if not GAMES_PATH.exists():
-        sys.exit(f"{GAMES_PATH} not found: run python -m worlds.ingest first")
-    games = pd.read_parquet(GAMES_PATH)
-    config = {
+CLASSES = ("same-league", "major-major", "major-minor", "minor-minor", "unknown")
+
+
+def load_config() -> dict:
+    return {
         **yaml.safe_load(ELO_CONFIG_PATH.read_text()),
         **yaml.safe_load(BACKTEST_CONFIG_PATH.read_text()),
         "international_leagues": yaml.safe_load(INGEST_CONFIG_PATH.read_text())[
             "international_leagues"
         ],
     }
+
+
+def compare(games: pd.DataFrame, config: dict, record: bool = False) -> dict:
+    """Every number main() prints, as a dict (the export reads this instead of re-deriving).
+
+    keys: grid {k_league: pooled 2023-24 log loss}, best_k, runs {variant: {year:
+    BacktestResult}}, pooled {variant: BacktestResult}, blue_only_by_year, blue_only,
+    half, bootstrap {variant: (mean, lo, hi)} vs current, merge {ok, ...},
+    by_class {variant: {class: (n, mean_pred, observed, log loss)}}, prestart.
+    record=True also fills BacktestResult.history of the +H+league runs (the model).
+    """
     off = {**config, "side_advantage": "none", "league_offsets": "off"}
     plus_h = {**off, "side_advantage": "pre_cutoff_rate"}
 
@@ -301,23 +316,12 @@ def main() -> None:
             _pool(res, (2023, 2024))["p_blue"], _pool(res, (2023, 2024))["result"]
         )
     best_k = min(grid, key=grid.get)
-    print("k_league grid, pooled 2023-24 log loss (+H +league):")
-    for k_league, ll in grid.items():
-        print(
-            f"  k_league={k_league:<4}{ll:.4f}"
-            + ("  <- chosen" if k_league == best_k else "")
-        )
 
-    if best_k != config["k_league"]:
-        warnings.warn(
-            f"grid picks k_league={best_k} but config/elo.yaml has {config['k_league']}",
-            stacklevel=2,
-        )
     full = {**plus_h, "league_offsets": "on", "k_league": best_k}
     runs = {
         "current": run_years(games, off),
         "+H": run_years(games, plus_h),
-        "+H+league": run_years(games, full),
+        "+H+league": run_years(games, full, record=record),
     }
     pooled = {name: score(_pool(r)) for name, r in runs.items()}
 
@@ -349,44 +353,30 @@ def main() -> None:
     blue_only = score(base.assign(p_blue=blue_p))
     half = score(base.assign(p_blue=0.5))
 
-    print(
-        f"\n{'log loss':<14}"
-        + "".join(f"{y:>9}" for y in YEARS)
-        + f"{'pooled':>9}{'Brier':>9}"
-    )
-    for name, by_year in runs.items():
-        print(_row(name, by_year, pooled[name]))
-    print(_row("blue-only", blue_only_by_year, blue_only))
-    print(_row("0.5", None, half))
-
     rng = np.random.default_rng(config["random_seed"])
     cur = per_game_loss(base["p_blue"], base["result"])
-    print(
-        "\nPaired bootstrap of pooled log loss difference vs current (negative = better):"
-    )
+    bootstrap = {}
     for name in ("+H", "+H+league"):
         pr = _pool(runs[name])
         if not (pr["gameid"].to_numpy() == base["gameid"].to_numpy()).all():
             raise ValueError(f"{name} and current score different games")
-        m, lo, hi = bootstrap_diff(
+        bootstrap[name] = bootstrap_diff(
             per_game_loss(pr["p_blue"], pr["result"]),
             cur,
             config["bootstrap_samples"],
             rng,
         )
-        print(f"  {name:<10}{m:+.4f}  95% CI [{lo:+.4f}, {hi:+.4f}]")
 
     cur_ll = pooled["current"].log_loss
     y25_cur = runs["current"][2025].log_loss
-    ok = (
-        pooled["+H+league"].log_loss < cur_ll
-        and runs["+H+league"][2025].log_loss <= y25_cur
-    )
-    print(
-        f"\nMerge bar (+H+league, k_league={best_k}): pooled {pooled['+H+league'].log_loss:.4f} < "
-        f"{cur_ll:.4f} and 2025 {runs['+H+league'][2025].log_loss:.4f} <= {y25_cur:.4f}: "
-        + ("PASS" if ok else "FAIL")
-    )
+    merge = {
+        "ok": pooled["+H+league"].log_loss < cur_ll
+        and runs["+H+league"][2025].log_loss <= y25_cur,
+        "pooled": pooled["+H+league"].log_loss,
+        "current_pooled": cur_ll,
+        "y2025": runs["+H+league"][2025].log_loss,
+        "current_2025": y25_cur,
+    }
 
     # Calibration by matchup class; the class comes from the +H+league run's league keys.
     lg = _pool(runs["+H+league"])
@@ -394,33 +384,91 @@ def main() -> None:
         g: matchup_class(b, r, config["major_leagues"])
         for g, b, r in zip(lg["gameid"], lg["blue_league"], lg["red_league"])
     }
+    by_class = {}
     for name in ("current", "+H+league"):
         pr = _pool(runs[name]).assign(cls=lambda d: d["gameid"].map(cls))
-        print(f"\nFavourite's view by matchup class ({name}):")
-        print(
-            f"  {'class':<13}{'n':>5}{'mean_pred':>11}{'observed':>10}{'log loss':>10}"
-        )
-        for c in (
-            "same-league",
-            "major-major",
-            "major-minor",
-            "minor-minor",
-            "unknown",
-        ):
+        by_class[name] = {}
+        for c in CLASSES:
             sub = pr[pr["cls"] == c]
             if sub.empty:
                 continue
             t = calibration_table(sub["p_blue"], sub["result"])
             n = t["n"].sum()
-            pred = np.nansum(t["n"] * t["mean_pred"]) / n
-            obs = np.nansum(t["n"] * t["observed"]) / n
-            print(
-                f"  {c:<13}{n:>5}{pred:>11.3f}{obs:>10.3f}{log_loss(sub['p_blue'], sub['result']):>10.4f}"
+            by_class[name][c] = (
+                n,
+                np.nansum(t["n"] * t["mean_pred"]) / n,
+                np.nansum(t["n"] * t["observed"]) / n,
+                log_loss(sub["p_blue"], sub["result"]),
             )
 
-    prestart = {y: r.n_prestart_wlds for y, r in runs["current"].items()}
+    return {
+        "grid": grid,
+        "best_k": best_k,
+        "runs": runs,
+        "pooled": pooled,
+        "blue_only_by_year": blue_only_by_year,
+        "blue_only": blue_only,
+        "half": half,
+        "bootstrap": bootstrap,
+        "merge": merge,
+        "by_class": by_class,
+        "prestart": {y: r.n_prestart_wlds for y, r in runs["current"].items()},
+    }
+
+
+def main() -> None:
+    if not GAMES_PATH.exists():
+        sys.exit(f"{GAMES_PATH} not found: run python -m worlds.ingest first")
+    games = pd.read_parquet(GAMES_PATH)
+    config = load_config()
+    c = compare(games, config)
+    best_k = c["best_k"]
+
+    print("k_league grid, pooled 2023-24 log loss (+H +league):")
+    for k_league, ll in c["grid"].items():
+        print(
+            f"  k_league={k_league:<4}{ll:.4f}"
+            + ("  <- chosen" if k_league == best_k else "")
+        )
+    if best_k != config["k_league"]:
+        warnings.warn(
+            f"grid picks k_league={best_k} but config/elo.yaml has {config['k_league']}",
+            stacklevel=2,
+        )
+
+    print(
+        f"\n{'log loss':<14}"
+        + "".join(f"{y:>9}" for y in YEARS)
+        + f"{'pooled':>9}{'Brier':>9}"
+    )
+    for name, by_year in c["runs"].items():
+        print(_row(name, by_year, c["pooled"][name]))
+    print(_row("blue-only", c["blue_only_by_year"], c["blue_only"]))
+    print(_row("0.5", None, c["half"]))
+
+    print(
+        "\nPaired bootstrap of pooled log loss difference vs current (negative = better):"
+    )
+    for name, (m, lo, hi) in c["bootstrap"].items():
+        print(f"  {name:<10}{m:+.4f}  95% CI [{lo:+.4f}, {hi:+.4f}]")
+
+    mg = c["merge"]
+    print(
+        f"\nMerge bar (+H+league, k_league={best_k}): pooled {mg['pooled']:.4f} < "
+        f"{mg['current_pooled']:.4f} and 2025 {mg['y2025']:.4f} <= {mg['current_2025']:.4f}: "
+        + ("PASS" if mg["ok"] else "FAIL")
+    )
+
+    for name, rows in c["by_class"].items():
+        print(f"\nFavourite's view by matchup class ({name}):")
+        print(
+            f"  {'class':<13}{'n':>5}{'mean_pred':>11}{'observed':>10}{'log loss':>10}"
+        )
+        for cls_name, (n, pred, obs, ll) in rows.items():
+            print(f"  {cls_name:<13}{n:>5}{pred:>11.3f}{obs:>10.3f}{ll:>10.4f}")
+
     print()
-    for year, n in prestart.items():
+    for year, n in c["prestart"].items():
         print(
             f"{year}: {n} WLDs games before start_date {config['tournaments'][year]['start_date']} "
             "(qualifiers, rating data only, not scored)"

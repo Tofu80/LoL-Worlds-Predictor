@@ -1,0 +1,37 @@
+# Inputs to python -m worlds.export (writes JSON the static site reads). Paths, seasons and
+# the Swiss/knockout dates of Worlds 2023-25 live here; 2026 uses config/worlds_2026.yaml.
+schema_version: 1
+out_dir: site/data
+seasons: [2023, 2024, 2025, 2026]
+decimals: {probability: 4, rating: 1}
+
+# Frozen pre-QF prediction (never re-run) and the files derived from it.
+frozen_prediction: results/worlds_2026_preQF.json
+frozen_prediction_sha256: 39ea9b16b706debdd11026e7022527367e0146b94610481927b09cd191668c42   # blob committed in 08e0ebe (2026-11-10, two seconds after the tagged 1efe4e7); the export refuses any other bytes
+frozen_output_commit: 08e0ebe
+frozen_tag: pred-2026-preQF
+frozen_committed_utc: 2026-11-10T11:52:38   # commit 1efe4e7 (2026-11-10 22:52 +11:00); played_before_commit compares a series start to this
+sensitivity: results/worlds_2026_preQF_sens_game1coin.json
+sensitivity_sha256: d4deb0eb4002a4401e58fbdee717b2f48b985a2611b391dd120a063a8ee4787c       # blob committed in 8b4875e
+score_glob: results/worlds_2026_preQF_score*.json   # newest complete version wins, else newest partial
+results_file: config/worlds_2026_results.yaml        # read only, for series start times
+
+# A series = consecutive games of the same two teams less than this many hours apart.
+series_gap_hours: 4
+
+# Worlds 2023-25 stage dates (UTC days, as in Oracle's Elixir). Games from backtest.yaml's
+# start_date to swiss_start are play-in, then Swiss until knockout_start, then the knockout.
+# The export checks them against the data: 16 Swiss teams, 8 at 3 wins and 8 at 3 losses,
+# and 8 knockout teams (4 quarterfinals, 2 semifinals, 1 final); a wrong date raises.
+# Sources are search results read 2026-11-13, not official-page reads. Phu confirmed the 2023
+# knockout start (Nov 2) and the 2023 Dplus Kia v KT Rolster rematch on 2026-11-13.
+stages:
+  2023:
+    swiss_start: 2023-10-19     # afkgaming.com, gameleap.com, sportskeeda.com (all: Swiss day 1 = Oct 19)
+    knockout_start: 2023-11-02  # confirmed by Phu 2026-11-13 (no source found; matches the data: no games Oct 30-Nov 1)
+  2024:
+    swiss_start: 2024-10-03     # sportskeeda.com (Swiss Oct 3-13), onlineesports.com
+    knockout_start: 2024-10-17  # sportskeeda.com, onlineesports.com (quarterfinals Oct 17-20)
+  2025:
+    swiss_start: 2025-10-15     # sheepesports.com (Swiss Oct 15-25)
+    knockout_start: 2025-10-28  # sheepesports.com (quarterfinals Oct 28-31)
