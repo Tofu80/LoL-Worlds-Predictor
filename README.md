@@ -3,7 +3,7 @@
 Predicts title odds for League of Legends Worlds. Teams are rated with Elo (time decay, a blue-side term and
 league offsets), and a Monte Carlo simulation of the knockout bracket turns the ratings into odds. The model is
 backtested on Worlds 2023–2025. The Worlds 2026 result is a retroactive pre-quarterfinal prediction: data up to
-the end of the Swiss stage, frozen and tagged before the final.
+the end of the Swiss stage, frozen and tagged before the final. Explore every team and match on the [live site](https://tofu80.github.io/LoL-Worlds-Predictor/).
 
 ## Headline result: Worlds 2023–2025 backtest (n = 300 games)
 
@@ -59,12 +59,10 @@ tended to have positive rating noise.
 | SF2 | Gen.G | 0.818 | Gen.G 3–0 Invictus Gaming |
 | Final | Gen.G | 0.669 | Bilibili Gaming 3–1 Gen.G |
 
-<!-- Phu: rewrite in your own words -->
 The favourite won 5 of the 6 series that had a clear favourite; the miss was the final, where the model gave Gen.G
 0.67. QF3 was a coin flip. Bilibili Gaming v Gen.G was the model's most likely final (from the P(final) columns, treating the two halves of the
 bracket as independent).
 
-<!-- Phu: rewrite in your own words -->
 - **Series log loss (7 series):** model 0.434, always-0.5 0.693, blue-only 0.695.
 - **Game log loss (25 games):** model 0.553 (bootstrap 95% CI [0.446, 0.663]), 0.5 0.693, blue-only 0.682. Model
   minus blue-only: −0.129 [−0.232, −0.016] (negative = model better).
@@ -72,20 +70,15 @@ bracket as independent).
   title it was better on log loss (0.338 vs 0.377 for 0.5) but worse than 0.5 on Brier (0.121 vs 0.109), because it
   put 55% on Gen.G.
 
-<!-- Phu: rewrite in your own words -->
 **Against TAB.** The closing TAB snapshot (2026-11-14 14:02 UTC, about 6 hours before the final started) had
 Bilibili Gaming at 0.393 with the margin removed, against the model's 0.331. Final log loss: TAB 0.935, model 1.106.
 Caveats: this is n = 1 series. TAB's price was set after both semifinals, while the frozen model is from before the
 quarterfinals and never updates. No quarterfinal or semifinal odds were recorded
 (see [docs/decisions.md](docs/decisions.md), 2026-11-14).
 
-<!-- Phu: rewrite in your own words -->
 **Small sample.** 7 series and 25 games are far too few to judge model quality. The game-level CI treats games as
 independent, but games within a series are related, so the real uncertainty is wider. The Worlds 2023–2025
 backtest (n = 300) remains the headline result.
-
-The market comparison covers the final only: no quarterfinal or semifinal odds were captured. The knockout is 7
-series, which is too few to judge the model either way.
 
 ## How it works
 
@@ -130,6 +123,22 @@ series, which is too few to judge the model either way.
   numbers are not a clean out-of-sample test.
 - The 2026 sample is 7 series.
 
+## The site
+
+The site (`site/`) is static HTML, CSS and JavaScript with hand-drawn SVG charts: no build step, no libraries, no CDN.
+A GitHub Actions workflow publishes `site/` to GitHub Pages (Settings → Pages → Source: GitHub Actions).
+
+Four pages: Overview (frozen title odds and the bracket), Teams (strength over time, Worlds results, match history),
+Matches (every match with its probability, derivation and result) and Model (backtest table, calibration, legend).
+Every probability carries a provenance label ([decisions.md, 2026-11-13](docs/decisions.md)):
+
+- **Frozen:** the tagged pre-quarterfinal prediction, committed 2026-11-10 after 6 of the 7 knockout series had been played, tagged 2026-11-12, never re-run. Series chances for matchups the saved odds do not give are computed from the frozen inputs, not saved on 11-10.
+- **Walk-forward:** computed afterwards, each game from earlier games only; `k_league` was chosen on the 2023–24 results. Not a live prediction.
+- **Replay:** rating history before a Worlds' start date, reconstructed with that Worlds' settings (H and decay use information dated after the point); context only, not a prediction made at the time.
+- **What-if:** the coin-flip sensitivity run, shown beside the frozen odds on the Overview.
+
+2026 knockout probabilities come from the frozen model, with ratings fixed at the 2026-11-02 cutoff and never recalculated from later results; 2026 play-in and Swiss probabilities are walk-forward.
+
 ## Run it
 
 ```
@@ -145,9 +154,6 @@ python -m worlds.export        # team-level JSON for the site, into site/data/ (
 node --test site/js/util.test.mjs   # the site's pure maths; no npm, no dependencies
 python -m http.server -d site       # preview the site at http://localhost:8000
 ```
-
-The site (`site/`) is static HTML, CSS and JavaScript with hand-drawn SVG charts: no build step, no libraries, no CDN.
-A GitHub Actions workflow publishes `site/` to GitHub Pages (Settings → Pages → Source: GitHub Actions).
 
 ## Data and credits
 

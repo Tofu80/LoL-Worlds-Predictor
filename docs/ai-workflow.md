@@ -121,6 +121,15 @@ blue" did not follow.
 q from pre-cutoff games instead of assuming it. The estimate came later: q = 0.218 from 1,736 games, so the
 previous loser was on blue about 22% of the time.
 
+### 2026-11-12 — Final's start time written from memory
+**What Claude did:** Desktop Claude's 2026-11-12 handover put the final at 03:00 Sydney (16:00 UTC). It was written
+from memory, not the official schedule.
+**How it was caught:** TAB listed the match at 6:00 Sydney. The Oracle's Elixir CSV later showed game 1 starting at
+2026-11-14 19:53 UTC (06:53 Sydney), and this was noticed while filling in the results file.
+**Fix and new rule:** Effect: the closing odds snapshot (14:02 UTC) was taken about 6 hours before the start, not the
+planned 2. It was still valid, because the scorer only needs a snapshot strictly before the start. Rule: a claim about
+when something happens comes from an official or dated source, not a summary.
+
 ### 2026-11-13 — "Committed before the matches" was not true
 **What Claude did:** Desktop Claude's brief for the website defined the `frozen` label as "the tagged
 pred-2026-preQF prediction, committed before the matches". Written from the project summary, not from git.
@@ -135,21 +144,45 @@ history or a dated log entry, not from a summary.
 
 ## What I did myself
 
-_Draft, Phu to edit._
+I made the modelling decisions; Claude Code wrote almost all of the code. The decisions were:
+time decay by scaling K (option A), the blue-side term H, league offsets, the merge bar C, how side
+selection is modelled (option 2) and the rating noise sigma. For each one Claude laid out the options
+and I picked, and the choice and the evidence for it are in decisions.md.
 
-- The modelling decisions: time decay by scaling K (option A), the blue-side term H, league offsets, the merge
-  bar C, the Right of First Selection side model (option 2) and the rating noise sigma.
-- The playername scans that caught the Team Secret and KeSPA Cup identity problems.
-- Finding the official 2026 ruleset and checking the side-selection rules against it.
-- The integrity rule for the retroactive prediction, and freezing and tagging it before the final.
-- The odds benchmark (TAB).
-- Choosing what not to build: player ratings, roster-change adjustments and Fearless effects stay parked.
+Where I knew the domain, I caught things the AI didn't. Claude Code judged team identity on names and
+dates; my playername scans showed that both Team Secret names fielded the same five players, and that
+KeSPA Cup and CDF games were academy rosters playing under main-team names. I also found the official
+2026 ruleset and checked the side-selection rules against it.
+
+I set the integrity rules for the prediction: data only from before the cutoff, freeze and tag it before
+the final, and score it exactly once. I chose TAB as the odds benchmark, recorded the snapshots myself
+and checked every knockout result against Leaguepedia before it was scored.
+
+I also decided what not to build. Player ratings, roster-change adjustments and Fearless draft effects
+stayed parked, so the project could ship before Worlds ended.
 
 ## What I'd do differently
 
-_Draft, Phu to edit._
+**Understand before building, not after.** I worked with a "build now, understand later" mindset. I
+used Claude Code to build, but much less to understand what it was building. The log above shows where
+that cost me. The mistakes I caught myself were all in areas I already knew: rosters, team identity,
+the tournament rules. The mistakes in the maths and the code, such as blank gameids being cross-joined
+into fake games, were caught by the reviewer agent, not by me. I could approve a plan without being
+able to check it.
 
+Next time I'd learn the core concepts before or while building them, not after:
+- the maths: how an Elo update works, the series probability formulas, log loss and Brier score, what
+  a bootstrap confidence interval does and doesn't tell you;
+- the code: how pandas groupby and merges behave with missing values, and where look-ahead leakage
+  can creep into a pipeline.
+
+In practice that means explaining a plan back in my own words before approving it, writing the tests
+for known-answer logic myself, and reading the diffs for the core modules (elo.py, series.py, score.py)
+rather than relying on the tests and the reviewer.
+
+**Smaller, process-level changes:**
 - Check the official format before writing any config, not after.
-- Design the integrity protocol before the live window, not after.
-- Capture odds as they are posted, so every round has a market comparison.
-- Run identity checks on players from day one.
+- Design the integrity protocol before the live window. The pre-quarterfinal prediction ended up
+  retroactive (committed after the quarterfinals had started), because the protocol came late.
+- Capture odds as they are posted, so every round has a market comparison, not just the final.
+- Run playername identity checks from day one.
