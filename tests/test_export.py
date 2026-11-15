@@ -835,6 +835,19 @@ def test_legends_take_dates_from_the_files():
     assert "k_league was chosen on the 2023-24 results" in legend["walk_forward"]
 
 
+def test_frozen_legend_says_how_many_knockout_series_were_played():
+    exp = {
+        "frozen_committed_utc": pd.Timestamp("2026-11-10T11:52:38"),
+        "frozen_tag": "T",
+        "frozen_output_commit": "abc1234",
+    }
+    pred = {"meta": {"prediction_cutoff_utc": "2026-11-02T00:00:00"}}
+    legend, _ = export.legends(exp, pred, datetime.datetime(2027, 1, 5), (6, 7))
+    assert legend["frozen"].startswith(
+        "Frozen 2026-11-10, after 6 of 7 knockout series had been played:"
+    )
+
+
 @needs_real
 def test_in_sample_flag_and_as_of(built):
     files, *_ = built

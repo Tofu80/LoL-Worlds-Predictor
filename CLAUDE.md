@@ -37,6 +37,9 @@ python -m worlds.backtest      # Worlds 2023–2025: current vs +H vs +H+league 
 python -m worlds.simulate      # current title odds
 python -m worlds.sensitivity config/sensitivity/game1_coin_flip.yaml  # pre-QF robustness check (clean tree; refuses to overwrite)
 python -m worlds.score         # score the frozen pre-QF prediction vs real results (--partial if the final isn't in)
+python -m worlds.export        # write team-level JSON for the site to site/data/ (re-run after worlds.score; never simulates)
+node --test site/js/util.test.mjs   # the site's pure maths (no npm, no dependencies)
+python -m http.server -d site       # preview the site at http://localhost:8000
 ```
 
 Update this section when the real commands differ.

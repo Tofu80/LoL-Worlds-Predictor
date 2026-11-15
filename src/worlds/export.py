@@ -39,15 +39,26 @@ DERIVATION = ("saved", "computed_from_frozen_inputs", "walk_forward_replay")
 K_LEAGUE_FIT_YEARS = (2023, 2024)
 
 
-def legends(exp: dict, pred: dict, generated: datetime) -> tuple[dict, dict]:
-    """Provenance and derivation wording, with every date taken from the files."""
+def legends(
+    exp: dict,
+    pred: dict,
+    generated: datetime,
+    knockout: tuple[int, int] | None = None,
+) -> tuple[dict, dict]:
+    """Provenance and derivation wording, with every date taken from the files.
+    knockout = (series played before the commit, knockout series in all)."""
     cutoff = pd.Timestamp(pred["meta"]["prediction_cutoff_utc"]).date()
     committed = pd.Timestamp(exp["frozen_committed_utc"]).date()
+    played = (
+        f", after {knockout[0]} of {knockout[1]} knockout series had been played"
+        if knockout
+        else ""
+    )
     legend = {
         "frozen": (
-            f"Frozen: computed from games before {cutoff} only, ratings fixed at that cutoff, "
-            f"committed {committed} (code at tag {exp['frozen_tag']}, output in "
-            f"{exp['frozen_output_commit']}) after the quarterfinals had started, and never re-run."
+            f"Frozen {committed}{played}: computed from games before {cutoff} only, ratings "
+            f"fixed at that cutoff (code at tag {exp['frozen_tag']}, output in "
+            f"{exp['frozen_output_commit']}), never re-run."
         ),
         "walk_forward": (
             "Walk-forward: computed afterwards. Each game is predicted from games dated before "
@@ -82,6 +93,7 @@ VARIANTS = {
     "blue-only": "Blue-side bonus only (equal teams)",
     "0.5": "Coin flip (0.5 every game)",
 }
+KO_STAGES = ("quarterfinal", "semifinal", "final")
 KO_ROUNDS = ["quarterfinal"] * 4 + ["semifinal"] * 2 + ["final"]
 STAGE_ORDER = ["play-in", "swiss", "quarterfinal", "semifinal", "final", "champion"]
 HISTORY_COLUMNS = [
@@ -625,11 +637,6 @@ def overview_json(
             "series_scores": doc["series_scores"],
             "rounds": doc["rounds"],
             "games": {k: v for k, v in doc["games"].items() if k != "rows"},
-            "odds": {
-                k: doc["odds"][k]
-                for k in ("n", "bookmaker_log_loss", "model_log_loss", "half_log_loss")
-                if k in doc["odds"]
-            },
         }
     return {
         "year": 2026,
@@ -891,7 +898,13 @@ def build_all(
         None,
     )
     generated = datetime.now(timezone.utc)
-    legend, derivation_text = legends(exp, pred, generated)
+    ko = [m for m in matches if m["year"] == 2026 and m["stage"] in KO_STAGES]
+    legend, derivation_text = legends(
+        exp,
+        pred,
+        generated,
+        (sum(m["played_before_commit"] is True for m in ko), len(ko)),
+    )
     files["meta.json"] = {
         "schema_version": exp["schema_version"],
         "generated_at": generated.isoformat(timespec="seconds"),
