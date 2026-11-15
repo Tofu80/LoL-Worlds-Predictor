@@ -1,10 +1,10 @@
 import { bracket, hatchDefs, oddsBar } from "./charts.mjs";
 import { load, slugs } from "./data.mjs";
 import { h, mount } from "./dom.mjs";
-import { badge, commitCounts, derivationNote } from "./prov.mjs";
+import { badge, derivationNote } from "./prov.mjs";
 import { failure, shell } from "./shell.mjs";
 import { dataTable, matchHref, scoreText, teamLink } from "./ui.mjs";
-import { dateLabel, pct } from "./util.mjs";
+import { commitCounts, dateLabel, pct } from "./util.mjs";
 
 const meta = await shell("index.html", "Worlds 2026 title odds");
 const main = document.getElementById("main");
@@ -57,7 +57,7 @@ try {
         "div",
         { class: "head" },
         badge("frozen", meta),
-        h("span", { class: "small" }, `Committed ${dateLabel(ov.frozen.committed_utc)} and never re-run. ${cc.before} of the ${cc.total} knockout series had already been played by then.`),
+        h("span", { class: "small" }, `Committed ${dateLabel(ov.frozen.committed_utc)} and never re-run. ${cc.before} of the ${ko.length} knockout series had already been played by then.`),
       ),
       pending
         ? h(
@@ -115,7 +115,7 @@ try {
             h("h2", {}, "How the frozen prediction did"),
             h("p", { class: "head" }, badge("frozen", meta, ov.score.derivation)),
             derivationNote(ov.score.derivation, meta),
-            h("p", { class: "small" }, `Scored on ${ov.score.n.series} series and ${ov.score.n.games} games. That is far too little to say anything about model quality. ${cc.before} of these ${cc.total} series were played before the prediction was committed, so only ${cc.after} ${cc.after === 1 ? "is" : "are"} out of sample in time.`),
+            h("p", { class: "small" }, `Scored on ${ov.score.n.series} series and ${ov.score.n.games} games. ${cc.before} of ${cc.total} series were played before the prediction was frozen (${dateLabel(ov.frozen.committed_utc)}). Parameters come from the 2023\u201325 backtest and pre-quarterfinal data only; the one design choice made after the quarterfinals began (the side-selection rule) moves quarterfinal probabilities by at most ${Math.max(...ov.sensitivity.qf_series.map((q) => Math.abs(q.p_a - q.p_a_frozen))).toFixed(3)} in the sensitivity check. With n = ${cc.total}, the scores are illustrative.`),
             dataTable({
               caption: "Series log loss and Brier score",
               head: ["Forecast", { text: "Log loss", num: true }, { text: "Brier", num: true }],

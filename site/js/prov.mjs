@@ -47,13 +47,6 @@ export function derivationNote(derivation, meta) {
   return derivation ? h("p", { class: "note" }, meta.derivation_text[derivation]) : null;
 }
 
-/** How many of the 2026 knockout series started before / after the frozen prediction was committed. */
-export function commitCounts(ko) {
-  const known = ko.filter((m) => m.played_before_commit !== null);
-  const before = known.filter((m) => m.played_before_commit).length;
-  return { before, after: known.length - before, total: ko.length };
-}
-
 /** For 2026 knockouts: a note beside the badge saying whether the series was played before the commit. */
 export function commitTag(m) {
   const when = { true: "played before commit", false: "played after commit" }[m.played_before_commit];

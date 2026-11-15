@@ -14,6 +14,7 @@ try {
   if (!/^[a-z0-9-]+$/.test(slug)) throw new NotFound("No team selected. Pick one from the Teams page.");
   const [team, all, ov, slugOf] = await Promise.all([load(`teams/${slug}.json`), load("matches.json"), load("overview_2026.json"), slugs()]);
   document.title = `${team.name} · LoL Worlds Predictor`;
+  const ko = all.matches.filter((m) => m.year === 2026 && ["quarterfinal", "semifinal", "final"].includes(m.stage));
   const byId = Object.fromEntries(all.matches.map((m) => [m.id, m]));
   const mine = team.matches.map((id) => byId[id]);
   const matchOf = {};
@@ -91,7 +92,7 @@ try {
             "section",
             {},
             h("h2", {}, "Path to the 2026 title"),
-            h("p", { class: "head" }, badge("frozen", meta), h("span", { class: "small" }, `computed from games before the quarterfinal cutoff, committed ${dateLabel(ov.frozen.committed_utc)}`)),
+            h("p", { class: "head" }, badge("frozen", meta), h("span", { class: "small" }, `computed from games before the quarterfinal cutoff. Frozen ${dateLabel(ov.frozen.committed_utc)}, after ${ko.filter((m) => m.played_before_commit).length} of ${ko.length} knockout series had been played.`)),
             dataTable({
               caption: "Frozen chance of reaching each round in 2026",
               head: [{ text: "Semifinal", num: true }, { text: "Final", num: true }, { text: "Title", num: true }],

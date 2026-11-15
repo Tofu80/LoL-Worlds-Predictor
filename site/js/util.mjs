@@ -91,3 +91,13 @@ export function yearTicks(t0, t1) {
   }
   return out;
 }
+
+/**
+ * Of the finished 2026 knockout series, how many started before / after the frozen prediction
+ * was committed. A finished series always has a start (the export refuses otherwise).
+ */
+export function commitCounts(ko) {
+  const done = ko.filter((m) => m.result.status === "final");
+  const before = done.filter((m) => m.played_before_commit).length;
+  return { before, after: done.length - before, total: done.length };
+}

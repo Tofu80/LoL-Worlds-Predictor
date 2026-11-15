@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   clip,
+  commitCounts,
   dateLabel,
   dateTimeLabel,
   linear,
@@ -80,4 +81,12 @@ test("number formatting", () => {
   assert.equal(signed(0.5, 1), "+0.5");
   assert.equal(clip("Fukuoka SoftBank HAWKS gaming", 12), "Fukuoka Sof…");
   assert.equal(clip("T1", 12), "T1");
+});
+
+test("commitCounts counts finished series only", () => {
+  const s = (before, status) => ({ played_before_commit: before, result: { status } });
+  assert.deepEqual(commitCounts([s(true, "final"), s(true, "final"), s(false, "final")]), { before: 2, after: 1, total: 3 });
+  // a pending final (start known or not) is not scored, so it is not counted
+  assert.deepEqual(commitCounts([s(true, "final"), s(false, "pending")]), { before: 1, after: 0, total: 1 });
+  assert.deepEqual(commitCounts([s(true, "final"), s(null, "pending")]), { before: 1, after: 0, total: 1 });
 });
