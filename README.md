@@ -33,16 +33,56 @@ were public, and tagged on 2026-11-12, so it was not public before the knockouts
 
 | team | P(SF) | P(final) | P(title) | What happened |
 |---|---|---|---|---|
-| Gen.G | 0.957 | 0.767 | 0.550 | TODO after final |
-| Bilibili Gaming | 0.636 | 0.459 | 0.194 | TODO after final |
-| T1 | 0.860 | 0.295 | 0.082 | TODO after final |
-| Dplus Kia | 0.364 | 0.232 | 0.074 | TODO after final |
-| Invictus Gaming | 0.504 | 0.106 | 0.048 | TODO after final |
-| Top Esports | 0.496 | 0.117 | 0.048 | TODO after final |
-| LYON | 0.043 | 0.010 | 0.002 | TODO after final |
-| Karmine Corp | 0.140 | 0.014 | 0.002 | TODO after final |
+| Gen.G | 0.957 | 0.767 | 0.550 | Runner-up (lost the final 1–3 to Bilibili Gaming) |
+| Bilibili Gaming | 0.636 | 0.459 | 0.194 | Champion (beat Gen.G 3–1) |
+| T1 | 0.860 | 0.295 | 0.082 | Lost in the semifinals (1–3 to Bilibili Gaming) |
+| Dplus Kia | 0.364 | 0.232 | 0.074 | Lost in the quarterfinals (0–3 to Bilibili Gaming) |
+| Invictus Gaming | 0.504 | 0.106 | 0.048 | Lost in the semifinals (0–3 to Gen.G) |
+| Top Esports | 0.496 | 0.117 | 0.048 | Lost in the quarterfinals (1–3 to Invictus Gaming) |
+| LYON | 0.043 | 0.010 | 0.002 | Lost in the quarterfinals (0–3 to Gen.G) |
+| Karmine Corp | 0.140 | 0.014 | 0.002 | Lost in the quarterfinals (1–3 to T1) |
 
-> **TODO after final:** scorer results (`python -m worlds.score`) and the comparison with TAB bookmaker odds.
+### How the frozen prediction did
+
+Scored once with `python -m worlds.score`; full output in [results/worlds_2026_preQF_score.md](results/worlds_2026_preQF_score.md).
+P(favourite) is the model's series win probability for the favourite, with ratings frozen at the cutoff. Semifinal
+and final probabilities are conditional on the matchup happening and ignore that teams advancing in the simulation
+tended to have positive rating noise.
+
+| series | model's favourite | P(favourite) | result |
+|---|---|---|---|
+| QF1 | Bilibili Gaming | 0.631 | Bilibili Gaming 3–0 Dplus Kia |
+| QF2 | T1 | 0.858 | T1 3–1 Karmine Corp |
+| QF3 | none (Top Esports 0.499, Invictus Gaming 0.501) | 0.50 | Invictus Gaming 3–1 Top Esports |
+| QF4 | Gen.G | 0.956 | Gen.G 3–0 LYON |
+| SF1 | Bilibili Gaming | 0.684 | Bilibili Gaming 3–1 T1 |
+| SF2 | Gen.G | 0.818 | Gen.G 3–0 Invictus Gaming |
+| Final | Gen.G | 0.669 | Bilibili Gaming 3–1 Gen.G |
+
+<!-- Phu: rewrite in your own words -->
+The favourite won 5 of the 6 series that had a clear favourite; the miss was the final, where the model gave Gen.G
+0.67. QF3 was a coin flip. Bilibili Gaming v Gen.G was the model's most likely final (from the P(final) columns, treating the two halves of the
+bracket as independent).
+
+<!-- Phu: rewrite in your own words -->
+- **Series log loss (7 series):** model 0.434, always-0.5 0.693, blue-only 0.695.
+- **Game log loss (25 games):** model 0.553 (bootstrap 95% CI [0.446, 0.663]), 0.5 0.693, blue-only 0.682. Model
+  minus blue-only: −0.129 [−0.232, −0.016] (negative = model better).
+- **Rounds:** the model beat both baselines on reaching the semifinals and the final (log loss and Brier). On the
+  title it was better on log loss (0.338 vs 0.377 for 0.5) but worse than 0.5 on Brier (0.121 vs 0.109), because it
+  put 55% on Gen.G.
+
+<!-- Phu: rewrite in your own words -->
+**Against TAB.** The closing TAB snapshot (2026-11-14 14:02 UTC, about 6 hours before the final started) had
+Bilibili Gaming at 0.393 with the margin removed, against the model's 0.331. Final log loss: TAB 0.935, model 1.106.
+Caveats: this is n = 1 series. TAB's price was set after both semifinals, while the frozen model is from before the
+quarterfinals and never updates. No quarterfinal or semifinal odds were recorded
+(see [docs/decisions.md](docs/decisions.md), 2026-11-14).
+
+<!-- Phu: rewrite in your own words -->
+**Small sample.** 7 series and 25 games are far too few to judge model quality. The game-level CI treats games as
+independent, but games within a series are related, so the real uncertainty is wider. The Worlds 2023–2025
+backtest (n = 300) remains the headline result.
 
 The market comparison covers the final only: no quarterfinal or semifinal odds were captured. The knockout is 7
 series, which is too few to judge the model either way.

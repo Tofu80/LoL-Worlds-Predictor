@@ -389,6 +389,13 @@ def knockout_matches(
                 "score": r["score"],
             }
             entry["log_loss"] = _ll(r["p_a_model"], r["a_won"])
+            for g in games.get(sid, []):
+                pg = score.game_prob(g["blue"], g["red"], strengths, h, sigma, nodes)
+                if abs(pg - g["p_blue_model"]) > 1e-9:
+                    raise ValueError(
+                        f"{sid} game {g['game']}: recomputed p {pg} differs from the "
+                        f"score file's {g['p_blue_model']} (stale score file)"
+                    )
             entry["games"] = [
                 {
                     "n": g["game"],
